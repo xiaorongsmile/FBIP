@@ -1,0 +1,857 @@
+---
+title: "FBIP_figure3"
+author: "wuxr"
+date: "2024-12-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#color setting
+```{r pressure, echo=FALSE}
+group_color <- c(Group1="#CC6666",Group2="#9999CC") # "#848484" "#A9A9A9"
+```
+
+#creat phyloseq object
+```{r pressure, echo=FALSE}
+library(phyloseq)
+
+species_table <- read.table("otu_table/merged_abundance_table_species.txt",header=T,sep="\t")
+species_otu_table = species_table[,-c(1:7)]
+species_tax = species_table[,c(1:7)]
+
+metadata <- read.table("metadata/FBIP_metadata.txt",header=T,sep="\t")
+metadata <- metadata[rownames(as.data.frame(t(species_otu_table))),]
+
+OTU = otu_table(species_otu_table,taxa_are_rows = TRUE)
+TAX = tax_table(species_tax)
+species_physeq = phyloseq(OTU,TAX, sample_data(metadata))
+
+rownames(species_otu_table) <- species_table$Species
+
+Fbip_clinical_127 <- read.table("clinical_metadata/FBIP_clinical_data_V3.txt",header=T,sep="\t")
+```
+
+#species PERMANOVA
+##Figure 3A
+```{r pressure, echo=FALSE}
+#PERMANOVA test
+variable <- colnames(metadata)[c(4,6,7,9:53)]
+matrix <- species_otu_table
+matrix <- matrix[which(rowSums(matrix) > 0),]
+matrix <- as.data.frame(t(matrix))
+matrix <- matrix[metadata$SampleID,]
+
+blocks<-with(metadata,how(blocks=Subject,nperm=999))
+adonis2(matrix~Time * Treatment, data = metadata, method="bray", permutation=blocks)
+
+#interaction all variable
+b <- data.frame(Df= numeric(),SumOfSqs= numeric(),R2=numeric(),F=numeric(),P=numeric(),stringsAsFactors=FALSE)
+
+for (i in variable){
+  meta <- metadata %>% drop_na(i)
+  id <- meta$SampleID
+  tab <- matrix[rownames(matrix) %in% id,]
+  blocks<-with(meta,how(blocks=Subject,nperm=999))
+  f <- formula(paste("tab ~", i, "*Treatment"))
+  a <- adonis2(f, data = meta, method="bray", permutation=blocks)
+  a <- as.data.frame(a)
+  b <- rbind(b,a[3,])
+}
+
+species_permanova_interaction <- b
+
+#Group1
+group1_meta <- subset(metadata,Treatment=="Group1")
+species_permanova_g1 <- data.frame(Df= numeric(),SumOfSqs= numeric(),R2=numeric(),F=numeric(),P=numeric(),stringsAsFactors=FALSE)
+
+for (i in variable){
+  meta <- group1_meta %>% drop_na(i)
+  id <- meta$SampleID
+  tab <- matrix[rownames(matrix) %in% id,]
+  blocks<-with(meta,how(blocks=Subject,nperm=999))
+  f <- formula(paste("tab ~", i))
+  a <- adonis2(f, data = meta, method="bray", permutation=blocks)
+  a <- as.data.frame(a)
+  species_permanova_g1 <- rbind(species_permanova_g1,a[1,])
+}
+species_permanova_g1$group <- "Group1"
+species_permanova_g1$variable <- row.names(species_permanova_g1)
+
+species_permanova_g1$cat <- c("Time",rep("Covariables",2),rep("Nutrients",13),rep("Blood Biomarker",16),rep("Anthropometric",7),rep("Blood Pressure",3),rep("Body Fat",6))  
+
+
+#Group2
+group2_meta <- subset(metadata,Treatment=="Group2")
+species_permanova_g2 <- data.frame(Df= numeric(),SumOfSqs= numeric(),R2=numeric(),F=numeric(),P=numeric(),stringsAsFactors=FALSE)
+
+for (i in variable){
+  meta <- group2_meta %>% drop_na(i)
+  id <- meta$SampleID
+  tab <- matrix[rownames(matrix) %in% id,]
+  blocks<-with(meta,how(blocks=Subject,nperm=999))
+  f <- formula(paste("tab ~", i))
+  a <- adonis2(f, data = meta, method="bray", permutation=blocks)
+  a <- as.data.frame(a)
+  species_permanova_g2 <- rbind(species_permanova_g2,a[1,])
+}
+species_permanova_g2$group <- "Group2"
+species_permanova_g2$variable <- row.names(species_permanova_g2)
+
+species_permanova_g2$cat <- c("Time",rep("Covariables",2),rep("Nutrients",13),rep("Blood Biomarker",16),rep("Anthropometric",7),rep("Blood Pressure",3),rep("Body Fat",6))
+
+#plot
+plot_perm <- rbind(species_permanova_g1,species_permanova_g2)
+plot_perm$stars <- cut(plot_perm$`Pr(>F)`, breaks=c(-Inf, 0.001, 0.01, 0.05, Inf), label=c("***", "**", "*", ""))
+
+
+color_code<-c("Time"="red","Covariables"="green","Nutrients"="#E69F00","Body Fat"="#999999","Blood Biomarker"="purple","Blood Pressure"="pink","Anthropometric"="#0099FF")
+plot_variable <- c("Time","Age","Gender","Fat_gram","Energy_kcal","CHO_gram","Protein_gram","Satfat_gram","Fiber","Sodium","TC_HDL_Ratio","TC","HDL","LDLm","TG","HBA1C","FG","Insulin","HOMA_IR",colnames(metadata)[33:53])
+
+data <- plot_perm[plot_perm$variable %in% plot_variable,]
+data$variable <- factor(data$variable,levels=rev(plot_variable))
+data$cat <- factor(data$cat,levels=c("Time","Covariables","Nutrients","Blood Biomarker","Anthropometric","Blood Pressure","Body Fat"))
+
+ggplot(data,aes(R2,variable))+
+    geom_segment(aes(x=0,xend=R2,y=variable,yend=variable))+
+    geom_point(size=3,aes(color=cat))+
+    scale_color_manual(values = color_code,guide=guide_legend(keywidth = 0.5, keyheight = 0.5))+
+    theme_bw()+
+    geom_text(aes(label=stars), color="black",size=5) +
+    coord_cartesian(xlim=c(0,0.027))+
+    theme(legend.position = "bottom",
+          legend.text = element_text(size = 8),
+          legend.title = element_blank(),
+          plot.title = element_blank(),
+          axis.title=element_blank(),strip.background = element_blank(),
+          axis.text=element_text(size=9,colour = "black"),axis.ticks.y = element_blank(),panel.grid.minor = element_blank(),panel.grid.major.y = element_blank())+facet_grid(~group)+scale_x_continuous(labels=scales::percent,expand=c(0,0))
+
+```
+
+##Figure3 B,C,E
+```{r pressure, echo=FALSE}
+dis_bray <- phyloseq::distance(species_physeq, "bray")
+dis_bray.pcoa = ordinate(species_physeq, method="PCoA", distance=dis_bray,nf=3)
+bray.pcoa <- plot_ordination(species_physeq, dis_bray.pcoa, color ="Treatment",axes=c(1,2)) + geom_point(size=3)
+data_axis12<-bray.pcoa$data
+colnames(data_axis12)[1:2]<-c("PC1","PC2")
+data_axis12$Time <- factor(data_axis12$Time,levels = c("W0","W2","W4","W8","W12","W16"))
+
+#color by group(figure3B)
+ggplot(data_axis12, aes(x=PC1,y=PC2))+
+    geom_point(aes(colour=Treatment),size=3)+
+    scale_colour_manual(values=group_color)+
+    geom_vline(aes(xintercept = 0),linetype="dotted")+
+    geom_hline(aes(yintercept = 0),linetype="dotted")+
+    xlab(paste("PCoA1 ( ",15.7,"%"," )",sep=""))+
+    ylab(paste("PCoA2 ( ",10.5,"%"," )",sep=""))+
+    stat_ellipse(data=data_axis12,geom="path",aes(colour=Treatment),alpha=0.3)+
+    theme_bw()+theme(panel.background = element_rect(fill='white',colour='black'),
+              panel.grid=element_blank(),axis.text = element_text(color="black",size=20),axis.title = element_text(size=20)) 
+
+##color by nutrients(figure 3C)
+data <- subset(data_axis12,!Time=="W2")
+data <- data[-207,]
+for (i in colnames(data)[c(10:21,62)]) {
+    p <- ggplot(data, aes(x=PC1,y=PC2,colour=data[,i]))+
+        geom_point(size=3)+
+        scale_colour_gradient(low = "yellow",high = "red",name=paste(i))+
+        geom_vline(aes(xintercept = 0),linetype="dotted")+
+        geom_hline(aes(yintercept = 0),linetype="dotted")+
+        xlab(paste("PCoA1 ( ",15.7,"%"," )",sep=""))+
+        ylab(paste("PCoA2 ( ",10.5,"%"," )",sep=""))+
+        theme_bw()+
+        theme(panel.background = element_rect(fill='white',colour='black'),
+              panel.grid=element_blank(),axis.text = element_text(color="black",size=20),axis.title = element_text(size=20)) 
+    base::print(p)
+}
+
+#figure 3E
+matrix <- species_otu_table
+matrix <- matrix[which(rowSums(matrix) > 0),]
+matrix <- as.data.frame(t(matrix))
+
+data <- subset(metadata,Time =="W0" | Time=="W2")   ##W0-2: R2:0.0046 p:0.001    #W2-16: R2:0.00142, P:0.366
+tab <- matrix[rownames(data),] %>% na.omit()
+blocks<-with(data,how(blocks=Subject,nperm=999))
+adonis2(tab~Time*Treatment+Age+Gender, data = data, method="bray",permutation=blocks)
+
+#Group1
+##W0-2
+data <- subset(metadata, Treatment == "Group1" & Time %in% c("W0","W2"))   ##W0-2: R2:0.01171 p:0.001    #W2-16: R2:0.00395, P:0.009
+tab <- matrix[rownames(data),] %>% na.omit()
+blocks<-with(data,how(blocks=Subject,nperm=999))
+adonis2(tab~Time+Age+Gender, data = data, method="bray",permutation=blocks)
+
+##W2-16
+data <- subset(metadata, Treatment == "Group1" & !Time =="W0")   
+tab <- matrix[rownames(data),] %>% na.omit()
+blocks<-with(data,how(blocks=Subject,nperm=999))
+adonis2(tab~Time+Age+Gender, data = data, method="bray",permutation=blocks)
+
+#Group2
+##W0-2: R2:0.00329 p:0.008    #W2-16: R2:0.00291, P:0.431
+
+#dispersion test
+dispersion <- betadisper(dis_bray, group=metadata$Treatment)
+permutest(dispersion)
+```
+
+##paired distance(figure 3D)
+```{r pressure, echo=FALSE}
+table <- as.data.frame(t(species_otu_table))
+bray_curtis_dis <- vegdist(table,method = "bray",upper = TRUE)
+bray_curtis_dis <- as.matrix(bray_curtis_dis)
+#提取两个时间点的配对距离
+test <- bray_curtis_dis
+test<- melt(test)
+
+test <- merge(test,metadata[,c(1,2,4,7)],by.x="Var1",by.y="SampleID")#第一次merge
+tab <- metadata[,c(1,2,4,7)]
+colnames(tab) <- c("Subject_p","SampleID","Time_p","Treatment_p")
+test <- merge(test,tab,by.x="Var2",by.y="SampleID") #第二次merge
+
+#提取group1样本距离
+g1_bray_dis <- subset(test, Treatment=="Group1" & Treatment_p =="Group1")
+G1_paired_dis <- NULL
+G1_paired_dis$W0_2 <- subset(g1_bray_dis,Time=="W0" & Time_p=="W2" & Subject==Subject_p)[,c(3,4)]
+G1_paired_dis$W0_4 <- subset(g1_bray_dis,Time=="W0" & Time_p=="W4" & Subject==Subject_p)[,c(3,4)]
+G1_paired_dis$W0_8 <- subset(g1_bray_dis,Time=="W0" & Time_p=="W8" & Subject==Subject_p)[,c(3,4)]
+G1_paired_dis$W0_12 <- subset(g1_bray_dis,Time=="W0" & Time_p=="W12" & Subject==Subject_p)[,c(3,4)]
+G1_paired_dis$W0_16 <- subset(g1_bray_dis,Time=="W0" & Time_p=="W16" & Subject==Subject_p)[,c(3,4)]
+G1_paired_dis$W2_4 <- subset(g1_bray_dis,Time=="W2" & Time_p=="W4" & Subject==Subject_p)[,c(3,4)]
+G1_paired_dis$W4_8 <- subset(g1_bray_dis,Time=="W4" & Time_p=="W8" & Subject==Subject_p)[,c(3,4)]
+G1_paired_dis$W8_12 <- subset(g1_bray_dis,Time=="W8" & Time_p=="W12" & Subject==Subject_p)[,c(3,4)]
+G1_paired_dis$W12_16 <- subset(g1_bray_dis,Time=="W12" & Time_p=="W16" & Subject==Subject_p)[,c(3,4)]
+
+dis_paired_id <- c("W0_2","W0_4","W0_8","W0_12","W0_16","W2_4","W4_8","W8_12","W12_16")
+a <- as.data.frame(G1_paired_dis[[1]])
+a$paired <- paste("W0_2")
+for (i in dis_paired_id[2:9]){
+  b <- as.data.frame(G1_paired_dis[[i]])
+  b$paired <- paste(i)
+  a <- rbind(a,b)
+}
+G1_paired_dis_table <- a
+G1_paired_dis_table$paired <- factor(G1_paired_dis_table$paired,levels=c("W0_2","W0_4","W0_8","W0_12","W0_16","W2_4","W4_8","W8_12","W12_16"))
+G1_paired_dis_table <- merge(G1_paired_dis_table,subset(metadata,Treatment=="Group1")[,c(1,48)],by="Subject")
+
+#group2
+g2_bray_dis <- subset(test, Treatment=="Group2" & Treatment_p =="Group2")
+G2_paired_dis <- NULL
+G2_paired_dis$W0_2 <- subset(g2_bray_dis,Time=="W0" & Time_p=="W2" & Subject==Subject_p)[,c(3,4)]
+G2_paired_dis$W0_4 <- subset(g2_bray_dis,Time=="W0" & Time_p=="W4" & Subject==Subject_p)[,c(3,4)]
+G2_paired_dis$W0_8 <- subset(g2_bray_dis,Time=="W0" & Time_p=="W8" & Subject==Subject_p)[,c(3,4)]
+G2_paired_dis$W0_12 <- subset(g2_bray_dis,Time=="W0" & Time_p=="W12" & Subject==Subject_p)[,c(3,4)]
+G2_paired_dis$W0_16 <- subset(g2_bray_dis,Time=="W0" & Time_p=="W16" & Subject==Subject_p)[,c(3,4)]
+G2_paired_dis$W2_4 <- subset(g2_bray_dis,Time=="W2" & Time_p=="W4" & Subject==Subject_p)[,c(3,4)]
+G2_paired_dis$W4_8 <- subset(g2_bray_dis,Time=="W4" & Time_p=="W8" & Subject==Subject_p)[,c(3,4)]
+G2_paired_dis$W8_12 <- subset(g2_bray_dis,Time=="W8" & Time_p=="W12" & Subject==Subject_p)[,c(3,4)]
+G2_paired_dis$W12_16 <- subset(g2_bray_dis,Time=="W12" & Time_p=="W16" & Subject==Subject_p)[,c(3,4)]
+
+a <- as.data.frame(G2_paired_dis[[1]])
+a$paired <- paste("W0_2")
+for (i in dis_paired_id[2:9]){
+  b <- as.data.frame(G2_paired_dis[[i]])
+  b$paired <- paste(i)
+  a <- rbind(a,b)
+}
+G2_paired_dis_table <- a
+G2_paired_dis_table$paired <- factor(G2_paired_dis_table$paired,levels=c("W0_2","W0_4","W0_8","W0_12","W0_16","W2_4","W4_8","W8_12","W12_16"))
+
+G2_paired_dis_table <- merge(G2_paired_dis_table,metadata[,c(1,48)],by="Subject")
+
+ggplot(G2_paired_dis_table,aes(x=paired,y=value))+geom_boxplot()+facet_wrap(~baseline_CT)+labs(y="paired bray_curtis distance",title="Control",x="")
+
+#merge two table
+a <- G1_paired_dis_table
+a$group <- paste("Treatment")
+b <- G2_paired_dis_table
+b$group <- paste("Control")
+paired_dis_table <- rbind(a,b)
+
+paired_dis_table <- merge(paired_dis_table,baseline_ct_meta[,2:3],by="Subject",all=TRUE)
+paired_dis_table$group <- factor(paired_dis_table$group,levels=c("Treatment","Control"))
+
+paired_dis_table1 <- subset(paired_dis_table,paired=="W0_2"| paired=="W2_4"| paired=="W4_8"| paired=="W8_12"| paired=="W12_16")
+paired_dis_table2 <- subset(paired_dis_table,paired=="W0_2"| paired=="W0_4"| paired=="W0_8"| paired=="W0_12"| paired=="W0_16")
+
+#figure code
+ggplot(paired_dis_table1,aes(x=paired,y=value))+
+    geom_boxplot(aes(fill=group),size=0.5,outlier.fill="white",outlier.color="white")+
+    scale_fill_manual(values = c("#CC6666", "#9999CC"))+
+    facet_wrap(~group)+
+    geom_jitter(width = 0.15,size=0.5)+
+    theme_bw()+stat_compare_means(label = "p.signif",hide.ns = FALSE,ref.group = "W0_2")+
+    xlab("")+
+    ylab("Paired Distance(Bray-Curtis)")+theme(panel.grid = element_blank(),legend.position = "none", axis.text=element_text(size=16,color="black"),axis.title = element_text(size=18),axis.text.x=element_text(angle = 90,hjust = 0.5,vjust = 0.5),strip.background = element_blank(),aspect.ratio=1)
+
+ggplot(paired_dis_table2,aes(x=paired,y=value))+
+    geom_boxplot(aes(fill=group),size=0.5,outlier.fill="white",outlier.color="white")+
+    scale_fill_manual(values = c("#CC6666", "#9999CC"))+
+    facet_wrap(~group)+
+    geom_jitter(width = 0.15,size=0.5)+
+    theme_bw()+stat_compare_means(label = "p.signif",hide.ns = FALSE,ref.group = "W0_2")+
+    xlab("")+
+    ylab("Paired distance(Bray-Curtis)")
+```
+
+
+#LinDA
+##LinDA_Species
+```{r pressure, echo=FALSE}
+library(MicrobiomeStat)
+
+#interaction
+species_prop_otu_table <- species_otu_table
+metadata <- metadata[colnames(species_prop_otu_table),]
+Linda_test <- linda(
+    feature.dat=species_prop_otu_table,
+    meta.dat=metadata,
+    formula='~ Treatment*Time + Age + Gender + (1| Subject)',
+    feature.dat.type = 'proportion',
+    prev.filter = 0,
+    mean.abund.filter = 0, 
+    max.abund.filter = 0,
+    is.winsor = FALSE,
+    outlier.pct = 0.03,
+    adaptive = FALSE,
+    zero.handling = 'imputation',
+    p.adj.method = "BH",
+    alpha = 0.05,
+    n.cores = 1, 
+    verbose = TRUE
+)
+
+#group1
+g1_meta <- subset(metadata,Treatment=="Group1")
+g1_table <- species_prop_otu_table[,colnames(species_prop_otu_table) %in% g1_meta$SampleID]
+g1_table <- g1_table[rowSums(g1_table != 0) > 0, ]
+
+Linda_test_g1 <- linda(
+  feature.dat=g1_table,
+  meta.dat=g1_meta,
+  formula='~ Time + Age + Gender + (1| Subject)',
+  feature.dat.type = 'proportion',
+  prev.filter = 0,
+  mean.abund.filter = 0, 
+  max.abund.filter = 0,
+  is.winsor = FALSE,
+  outlier.pct = 0.03,
+  adaptive = FALSE,
+  zero.handling = 'imputation',
+  p.adj.method = "BH",
+  alpha = 0.05,
+  n.cores = 1, 
+  verbose = TRUE
+)
+
+#group2
+g2_meta <- subset(metadata,Treatment=="Group2")
+
+g2_table <- species_prop_otu_table[,colnames(species_prop_otu_table) %in% g2_meta$SampleID]
+g2_table <- g2_table[rowSums(g2_table != 0) > 0, ]
+
+Linda_test_g2 <- linda(
+  feature.dat=g2_table,
+  meta.dat=g2_meta,
+  formula='~ Time + Age + Gender + (1| Subject)',
+  feature.dat.type = 'proportion',
+  prev.filter = 0,
+  mean.abund.filter = 0, 
+  max.abund.filter = 0,
+  is.winsor = FALSE,
+  outlier.pct = 0.03,
+  adaptive = FALSE,
+  zero.handling = 'imputation',
+  p.adj.method = "BH",
+  alpha = 0.05,
+  n.cores = 1, 
+  verbose = TRUE
+)
+
+#interaction q value
+original_ra_linda <- as.data.frame(Linda_test[["output"]][[9]][,6])
+rownames(original_ra_linda) <- rownames(Linda_test[["output"]][[9]])
+
+for(i in 10:13) {
+  col <- as.data.frame(Linda_test[["output"]][[i]][,6])
+  original_ra_linda <- cbind(original_ra_linda, col)
+}
+colnames(original_ra_linda) <- c("W2","W4","W8","W12","W16")
+
+#g1 q value
+original_ra_linda_g1 <- as.data.frame(Linda_test_g1[["output"]][[1]][,6])
+rownames(original_ra_linda_g1) <- rownames(Linda_test_g1[["output"]][[1]])
+
+for(i in 2:5) {
+  col <- as.data.frame(Linda_test_g1[["output"]][[i]][,6])
+  original_ra_linda_g1 <- cbind(original_ra_linda_g1, col)
+}
+colnames(original_ra_linda_g1) <- c("W2","W4","W8","W12","W16")
+
+```
+
+###lfc heatmap (figure S4B)
+```{r pressure, echo=FALSE}
+#group1
+g1_lfc <- as.data.frame(Linda_test_g1$output$TimeW2[,2])
+rownames(g1_lfc) <- rownames(Linda_test_g1$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_test_g1$output[i])
+  g1_lfc <- cbind(g1_lfc, col[,2])
+}
+colnames(g1_lfc) <- c("W2","W4","W8","W12","W16")
+
+g1_lfc$species <- rownames(g1_lfc)
+g1_lfc <- melt(g1_lfc,id.vars = "species",value.name = "lfc",variable.name="Time")
+
+g1_q <- as.data.frame(Linda_test_g1$output$TimeW2[,6])
+rownames(g1_q) <- rownames(Linda_test_g1$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_test_g1$output[i])
+  g1_q <- cbind(g1_q, col[,6])
+}
+colnames(g1_q) <- c("W2","W4","W8","W12","W16")
+g1_q$species <- rownames(g1_q)
+g1_q <- melt(g1_q,id.vars = "species",value.name = "q",variable.name="Time")
+
+g1_tata <- merge(g1_lfc,g1_q,by=c("species","Time"))
+
+g1_tata$group <- "Group1"
+
+#group2
+g1_lfc <- as.data.frame(Linda_test_g2$output$TimeW2[,2])
+rownames(g1_lfc) <- rownames(Linda_test_g2$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_test_g2$output[i])
+  g1_lfc <- cbind(g1_lfc, col[,2])
+}
+colnames(g1_lfc) <- c("W2","W4","W8","W12","W16")
+
+g1_lfc$species <- rownames(g1_lfc)
+g1_lfc <- melt(g1_lfc,id.vars = "species",value.name = "lfc",variable.name="Time")
+
+g1_q <- as.data.frame(Linda_test_g2$output$TimeW2[,6])
+rownames(g1_q) <- rownames(Linda_test_g2$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_test_g2$output[i])
+  g1_q <- cbind(g1_q, col[,6])
+}
+colnames(g1_q) <- c("W2","W4","W8","W12","W16")
+g1_q$species <- rownames(g1_q)
+g1_q <- melt(g1_q,id.vars = "species",value.name = "q",variable.name="Time")
+
+g2_tata <- merge(g1_lfc,g1_q,by=c("species","Time"))
+
+g2_tata$group <- "Group2"
+
+##sig species
+test1 <- original_ra_linda[apply(original_ra_linda, 1, function(row) any(row < 0.15)), ]
+test1$otu <- rownames(test1)
+
+test2 <- original_ra_linda_g1[apply(original_ra_linda_g1, 1, function(row) any(row < 0.05)), ]
+test2$otu <- rownames(test2)
+
+sig_species <- intersect(test2$otu,test1$otu)
+##plot_data
+plot_data <- rbind(g1_tata,g2_tata)
+
+plot_data$Time <- factor(plot_data$Time,levels=c("W2","W4","W8","W12","W16"))
+plot_data$group <- factor(plot_data$group,levels=c("Group1","Group2"))
+plot_data$star <- cut(plot_data$q, breaks=c(-Inf, 0.001, 0.01, 0.05, Inf), label=c("***", "**", "*", ""))
+
+test <- subset(species_mean_zscore,species %in% sig_species)
+tab <- subset(test,Treatment=="Group1")
+tab <- dcast(tab,species~Time,value.var ='z_score')
+gg <- hclust(dist(tab))
+tab <- tab[gg$order,]
+
+data <- plot_data[plot_data$species %in% sig_species,]
+data$species <- factor(data$species,levels = tab$species)
+
+b <- ggplot(data,aes(x=Time,y=species,fill=lfc))+geom_tile()+facet_grid(~group)+scale_fill_gradient2("lfc",low="#4d4e9e",mid="white",high="#f39f13")+labs(x="",y="")+geom_text(aes(label=star), color="black",size=4)+theme_classic()+theme(axis.text = element_text(color="black",size=9),legend.title = element_text(size=8),legend.text = element_text(size=9),strip.background = element_blank(),panel.grid = element_blank(),legend.position = 'right',legend.key.size = unit(0.3,"cm"),axis.line = element_blank(),axis.text.y = element_blank(),axis.ticks.y=element_blank())+scale_y_discrete(position = "left")
+
+#inter qval画图
+inter_q <- original_ra_linda
+inter_q$species <- rownames(inter_q)
+inter_q <- melt(inter_q,variable.name = "Time",value.name = "qval")
+
+inter_q$stars <- cut(inter_q$qval, breaks=c(-Inf, 0.001, 0.01, 0.05,0.15,Inf), label=c("****","***", "**", "*", ""))
+inter_q$qval <- cut(inter_q$qval, breaks=c(-Inf, 0.001,0.01, 0.05,0.15,Inf))
+inter_q$Time <- factor(inter_q$Time,levels=c("W2","W4","W8","W12","W16"))
+
+test <- subset(inter_q,species %in% sig_species)
+test$species <- factor(test$species,levels = tab$species)
+
+a <- ggplot(test,aes(Time,species,fill=qval)) + geom_tile()+
+    theme_classic()+
+    geom_text(aes(label=stars),color="white")+scale_fill_manual("q",breaks=levels(test$qval),values=c("#333333","#666666","#888888","#BBBBBB","#EEEEEE"),labels = c("<0.001","<0.01", "<0.05","<0.15","none"))+theme(axis.text.x = element_text(color="black",size=9),axis.text.y = element_text(color="black",size=10),legend.position = "left",legend.title = element_text(size=9),legend.key.size = unit(0.2,"cm"))+ylab("")+xlab("")
+
+a+b+plot_layout(ncol=2,nrow=1,widths = c(2,4))
+
+```
+
+###z_score heatmap(figure 3F)
+```{r pressure, echo=FALSE}
+##calculate z-score
+table <- species_otu_table 
+table <- as.data.frame(t(table))
+table <- merge(metadata[,c(1,4,8)],table,by.x="SampleID",by.y='row.names')
+table <- table[,-1]
+
+table %>% group_by(Treatment,Time) %>% summarise_all(funs(mean))  %>% as.data.frame() -> species_mean_zscore
+for (i in 3:ncol(species_mean_zscore)){
+  species_mean_zscore[,i] <- scale(species_mean_zscore[,i])
+}
+species_mean_zscore <- melt(species_mean_zscore,id.vars = c("Treatment","Time"),variable.name = "species",value.name = "z_score")
+
+species_mean_zscore <- species_mean_zscore[order(species_mean_zscore$z_score,decreasing = T),]
+species_mean_zscore$species<- factor(species_mean_zscore$species, levels = c(unique(species_mean_zscore$species)))
+
+#plot
+test <- subset(species_mean_zscore,species %in% sig_species)
+
+tab <- subset(test,Treatment=="Group1")
+tab <- dcast(tab,species~Time,value.var ='z_score')
+gg <- hclust(dist(tab))
+tab <- tab[gg$order,]
+
+test$species <- factor(test$species,levels = tab$species)
+
+ggplot(test,aes(Time, species, fill = z_score)) +
+    geom_tile(color="white",size=0.3) +
+    scale_fill_gradient2("Z score",low="darkgreen",mid="white",high="#800000") +
+    xlab("") +
+    ylab("") +
+    theme_classic() +
+    facet_wrap(~Treatment) +
+    theme(
+        axis.ticks.x = element_line(color = "black"),
+        axis.text = element_text(color = "black", size = 8),
+        axis.ticks.y = element_blank(),
+        legend.title = element_text(size = 8),
+        axis.line.x = element_line(),legend.key.size = unit(0.3, "cm"),axis.text.x = element_blank(),axis.line.x.bottom = element_blank(),axis.ticks.x.bottom = element_blank(),strip.background = element_blank(),axis.line.y = element_blank())
+
+```
+
+##LinDA_genus
+```{r pressure, echo=FALSE}
+#interaction
+metadata <- metadata[colnames(genus_otu_table),]
+Linda_genus_test <- linda(
+    feature.dat=genus_otu_table,
+    meta.dat=metadata,
+    formula='~ Treatment*Time + Age + Gender + (1| Subject)',
+    feature.dat.type = 'proportion',
+    prev.filter = 0,
+    mean.abund.filter = 0, 
+    max.abund.filter = 0,
+    is.winsor = FALSE,
+    outlier.pct = 0.03,
+    adaptive = FALSE,
+    zero.handling = 'imputation',
+    p.adj.method = "BH",
+    alpha = 0.05,
+    n.cores = 1, 
+    verbose = TRUE
+)
+
+#group1
+g1_meta <- subset(metadata,Treatment=="Group1")
+g1_table <- genus_otu_table[,colnames(genus_otu_table) %in% g1_meta$SampleID]
+g1_table <- g1_table[rowSums(g1_table != 0) > 0, ]
+
+Linda_test_genus_g1 <- linda(
+  feature.dat=g1_table,
+  meta.dat=g1_meta,
+  formula='~ Time + Age + Gender + (1| Subject)',
+  feature.dat.type = 'proportion',
+  prev.filter = 0,
+  mean.abund.filter = 0, 
+  max.abund.filter = 0,
+  is.winsor = FALSE,
+  outlier.pct = 0.03,
+  adaptive = FALSE,
+  zero.handling = 'imputation',
+  p.adj.method = "BH",
+  alpha = 0.05,
+  n.cores = 1, 
+  verbose = TRUE
+)
+
+#group2
+g2_meta <- subset(metadata,Treatment=="Group2")
+
+g2_table <- genus_otu_table[,colnames(genus_otu_table) %in% g2_meta$SampleID]
+g2_table <- g2_table[rowSums(g2_table != 0) > 0, ]
+
+Linda_test_genus_g2 <- linda(
+  feature.dat=g2_table,
+  meta.dat=g2_meta,
+  formula='~ Time + Age + Gender + (1| Subject)',
+  feature.dat.type = 'proportion',
+  prev.filter = 0,
+  mean.abund.filter = 0, 
+  max.abund.filter = 0,
+  is.winsor = FALSE,
+  outlier.pct = 0.03,
+  adaptive = FALSE,
+  zero.handling = 'imputation',
+  p.adj.method = "BH",
+  alpha = 0.05,
+  n.cores = 1, 
+  verbose = TRUE
+)
+
+#interaction q value
+original_ra_genus_linda <- as.data.frame(Linda_genus_test[["output"]][[9]][,6])
+rownames(original_ra_genus_linda) <- rownames(Linda_genus_test[["output"]][[9]])
+
+for(i in 10:13) {
+  col <- as.data.frame(Linda_genus_test[["output"]][[i]][,6])
+  original_ra_genus_linda <- cbind(original_ra_genus_linda, col)
+}
+colnames(original_ra_genus_linda) <- c("W2","W4","W8","W12","W16")
+
+#g1 q value
+original_ra_genus_linda_g1 <- as.data.frame(Linda_test_genus_g1[["output"]][[1]][,6])
+rownames(original_ra_genus_linda_g1) <- rownames(Linda_test_genus_g1[["output"]][[1]])
+
+for(i in 2:5) {
+  col <- as.data.frame(Linda_test_genus_g1[["output"]][[i]][,6])
+  original_ra_genus_linda_g1 <- cbind(original_ra_genus_linda_g1, col)
+}
+colnames(original_ra_genus_linda_g1) <- c("W2","W4","W8","W12","W16")
+
+test1 <- original_ra_genus_linda[apply(original_ra_genus_linda, 1, function(row) any(row < 0.05)), ]
+test1$otu <- rownames(test1)
+
+test2 <- original_ra_genus_linda_g1[apply(original_ra_genus_linda_g1, 1, function(row) any(row < 0.05)), ]
+test2$otu <- rownames(test2)
+
+intersect(test2$otu,test1$otu)
+```
+
+###genus_lfc heatmap(figure S4A)
+```{r pressure, echo=FALSE}
+#group1
+g1_lfc <- as.data.frame(Linda_test_genus_g1$output$TimeW2[,2])
+rownames(g1_lfc) <- rownames(Linda_test_genus_g1$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_test_genus_g1$output[i])
+  g1_lfc <- cbind(g1_lfc, col[,2])
+}
+colnames(g1_lfc) <- c("W2","W4","W8","W12","W16")
+
+g1_lfc$species <- rownames(g1_lfc)
+g1_lfc <- melt(g1_lfc,id.vars = "species",value.name = "lfc",variable.name="Time")
+
+g1_q <- as.data.frame(Linda_test_genus_g1$output$TimeW2[,6])
+rownames(g1_q) <- rownames(Linda_test_genus_g1$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_test_genus_g1$output[i])
+  g1_q <- cbind(g1_q, col[,6])
+}
+colnames(g1_q) <- c("W2","W4","W8","W12","W16")
+g1_q$species <- rownames(g1_q)
+g1_q <- melt(g1_q,id.vars = "species",value.name = "q",variable.name="Time")
+
+g1_tata <- merge(g1_lfc,g1_q,by=c("species","Time"))
+
+g1_tata$group <- "Group1"
+
+#group2
+g1_lfc <- as.data.frame(Linda_test_genus_g2$output$TimeW2[,2])
+rownames(g1_lfc) <- rownames(Linda_test_genus_g2$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_test_genus_g2$output[i])
+  g1_lfc <- cbind(g1_lfc, col[,2])
+}
+colnames(g1_lfc) <- c("W2","W4","W8","W12","W16")
+
+g1_lfc$species <- rownames(g1_lfc)
+g1_lfc <- melt(g1_lfc,id.vars = "species",value.name = "lfc",variable.name="Time")
+
+g1_q <- as.data.frame(Linda_test_genus_g2$output$TimeW2[,6])
+rownames(g1_q) <- rownames(Linda_test_genus_g2$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_test_genus_g2$output[i])
+  g1_q <- cbind(g1_q, col[,6])
+}
+colnames(g1_q) <- c("W2","W4","W8","W12","W16")
+g1_q$species <- rownames(g1_q)
+g1_q <- melt(g1_q,id.vars = "species",value.name = "q",variable.name="Time")
+
+g2_tata <- merge(g1_lfc,g1_q,by=c("species","Time"))
+
+g2_tata$group <- "Group2"
+
+##sig genus
+test1 <- original_ra_genus_linda[apply(original_ra_genus_linda, 1, function(row) any(row < 0.05)), ]
+test1$otu <- rownames(test1)
+
+test2 <- original_ra_genus_linda_g1[apply(original_ra_genus_linda_g1, 1, function(row) any(row < 0.05)), ]
+test2$otu <- rownames(test2)
+
+sig_genus <- intersect(test2$otu,test1$otu)
+##plot_data
+plot_data <- rbind(g1_tata,g2_tata)
+
+plot_data$Time <- factor(plot_data$Time,levels=c("W2","W4","W8","W12","W16"))
+plot_data$group <- factor(plot_data$group,levels=c("Group1","Group2"))
+plot_data$star <- cut(plot_data$q, breaks=c(-Inf, 0.001, 0.01, 0.05, Inf), label=c("***", "**", "*", ""))
+
+test <- subset(genus_mean_zscore,genus %in% sig_genus)
+tab <- subset(test,Treatment=="Group1")
+tab <- dcast(tab,genus~Time,value.var ='z_score')
+gg <- hclust(dist(tab))
+tab <- tab[gg$order,]
+
+data <- plot_data[plot_data$species %in% sig_genus,]
+data$species <- factor(data$species,levels = tab$genus)
+
+b <- ggplot(data,aes(x=Time,y=species,fill=lfc))+geom_tile()+facet_grid(~group)+scale_fill_gradient2("lfc",low="#4d4e9e",mid="white",high="#f39f13")+labs(x="",y="")+geom_text(aes(label=star), color="black",size=4)+theme_classic()+theme(axis.text = element_text(color="black",size=9),legend.title = element_text(size=8),legend.text = element_text(size=9),strip.background = element_blank(),panel.grid = element_blank(),legend.position = 'right',legend.key.size = unit(0.3,"cm"),axis.line = element_blank(),axis.text.y = element_blank(),axis.ticks.y=element_blank())+scale_y_discrete(position = "left")
+
+#inter qval画图
+inter_q <- original_ra_genus_linda
+inter_q$species <- rownames(inter_q)
+inter_q <- melt(inter_q,variable.name = "Time",value.name = "qval")
+
+inter_q$stars <- cut(inter_q$qval, breaks=c(-Inf, 0.001, 0.01, 0.05,Inf), label=c("***", "**", "*", ""))
+inter_q$qval <- cut(inter_q$qval, breaks=c(-Inf, 0.001,0.01, 0.05,Inf))
+inter_q$Time <- factor(inter_q$Time,levels=c("W2","W4","W8","W12","W16"))
+
+test <- subset(inter_q,species %in% sig_genus)
+test$species <- factor(test$species,levels = tab$genus)
+
+a <- ggplot(test,aes(Time,species,fill=qval)) + geom_tile()+
+    theme_classic()+
+    geom_text(aes(label=stars),color="white")+scale_fill_manual("q",breaks=levels(test$qval),values=c("#666666","#888888","#BBBBBB","#EEEEEE"),labels = c("<0.001","<0.01", "<0.05","none"))+theme(axis.text.x = element_text(color="black",size=9),axis.text.y = element_text(color="black",size=10),legend.position = "left",legend.title = element_text(size=9),legend.key.size = unit(0.2,"cm"))+ylab("")+xlab("")
+
+a+b+plot_layout(ncol=2,nrow=1,widths = c(2,4))
+```
+
+##associations between significantly changed microbe and nutrients (figure 3G-H, S4C-D)
+```{r pressure, echo=FALSE}
+table <- species_otu_table[rownames(species_otu_table) %in% sig_species,]
+table2 <- genus_otu_table[rownames(genus_otu_table) %in% sig_genus,]
+table2 <- table2[,colnames(table)]
+table <- rbind(table,table2)
+table <- as.data.frame(t(table))
+table <- merge(metadata[,1:21],table,by='row.names')
+table[, 10:ncol(table)] <- lapply(table[, 10:ncol(table)], scale)
+
+##interaction
+linda_tax_nutrient_corr_inter <- data.frame(tax = character(), nutrient=character(),pval = numeric(),stringsAsFactors=FALSE)
+
+for (i in 10:22){
+  for (j in 23:67){
+    fit.lmer <- lmer(table[,j] ~ table[,i]*Treatment+Age+Gender+(1 | Subject),data = table)
+    linda_tax_nutrient_corr_inter <- rbind(linda_tax_nutrient_corr_inter, data.frame(nutrient = colnames(table)[i],tax=colnames(table)[j], pval = summary(fit.lmer)$coefficients[6,5], stringsAsFactors = FALSE))
+  }
+}
+
+#adjust pvalue
+tax_nutrient_pval <- dcast(linda_tax_nutrient_corr_inter,tax~nutrient,value.var = 'pval')
+
+for (i in 2:ncol(tax_nutrient_pval)){
+  tax_nutrient_pval[,i] <- p.adjust(tax_nutrient_pval[,i],method = "BH")
+}
+
+linda_tax_nutrient_corr_inter <- merge(linda_tax_nutrient_corr_inter,melt(tax_nutrient_pval,id.vars = "tax",variable.name = "nutrient",value.name = "inter_qval"),by=c("tax","nutrient"))
+linda_tax_nutrient_corr_inter$stars <- cut(linda_tax_nutrient_corr_inter$qval, breaks=c(-Inf, 0.001, 0.01, 0.05, Inf), label=c("***", "**", "*", ""))
+
+
+##group1
+tab <- subset(table,Treatment=="Group1")
+
+linda_tax_nutrient_corr_g1 <- data.frame(tax = character(), nutrient=character(),coef = numeric(),pval = numeric(),stringsAsFactors=FALSE)
+
+for (i in 10:22){
+  for (j in 23:67){
+    fit.lmer <- lmer(tab[,j] ~ tab[,i]+Age+Gender+(1 | Subject),data = tab)
+    linda_tax_nutrient_corr_g1 <- rbind(linda_tax_nutrient_corr_g1, data.frame(nutrient = colnames(tab)[i],tax=colnames(tab)[j], coef = summary(fit.lmer)$coefficients[2,1],pval = summary(fit.lmer)$coefficients[2,5], stringsAsFactors = FALSE))
+  }
+}
+
+#adjust pvalue
+tax_nutrient_pval <- dcast(linda_tax_nutrient_corr_g1,tax~nutrient,value.var = 'pval')
+
+for (i in 2:ncol(tax_nutrient_pval)){
+  tax_nutrient_pval[,i] <- p.adjust(tax_nutrient_pval[,i],method = "BH")
+}
+
+linda_tax_nutrient_corr_g1 <- merge(linda_tax_nutrient_corr_g1,melt(tax_nutrient_pval,id.vars = "tax",variable.name = "nutrient",value.name = "qval"),by=c("tax","nutrient"))
+linda_tax_nutrient_corr_g1$stars <- cut(linda_tax_nutrient_corr_g1$qval, breaks=c(-Inf, 0.001, 0.01, 0.05, Inf), label=c("***", "**", "*", ""))
+linda_tax_nutrient_corr_g1$group <- "Group1"
+
+
+##group2
+tab <- subset(table,Treatment=="Group2")
+
+linda_tax_nutrient_corr_g2 <- data.frame(tax = character(), nutrient=character(),coef = numeric(),pval = numeric(),stringsAsFactors=FALSE)
+
+for (i in 10:22){
+  for (j in 23:67){
+    fit.lmer <- lmer(tab[,j] ~ tab[,i]+Age+Gender+(1 | Subject),data = tab)
+    linda_tax_nutrient_corr_g2 <- rbind(linda_tax_nutrient_corr_g2, data.frame(nutrient = colnames(tab)[i],tax=colnames(tab)[j], coef = summary(fit.lmer)$coefficients[2,1],pval = summary(fit.lmer)$coefficients[2,5], stringsAsFactors = FALSE))
+  }
+}
+
+#adjust p value
+tax_nutrient_pval <- dcast(linda_tax_nutrient_corr_g2,tax~nutrient,value.var = 'pval')
+
+for (i in 2:ncol(tax_nutrient_pval)){
+  tax_nutrient_pval[,i] <- p.adjust(tax_nutrient_pval[,i],method = "BH")
+}
+
+linda_tax_nutrient_corr_g2 <- merge(linda_tax_nutrient_corr_g2,melt(tax_nutrient_pval,id.vars = "tax",variable.name = "nutrient",value.name = "qval"),by=c("tax","nutrient"))
+linda_tax_nutrient_corr_g2$stars <- cut(linda_tax_nutrient_corr_g2$qval, breaks=c(-Inf, 0.001, 0.01, 0.05, Inf), label=c("***", "**", "*", ""))
+linda_tax_nutrient_corr_g2$group <- "Group2"
+
+##plot
+test <- subset(genus_mean_zscore, genus %in% sig_genus)
+tab <- subset(test,Treatment=="Group1")
+tab <- dcast(tab,genus~Time,value.var ='z_score')
+gg <- hclust(dist(tab))
+tab <- tab[gg$order,]
+
+test <- subset(species_mean_zscore,species %in% sig_species)
+tab2 <- subset(test,Treatment=="Group1")
+tab2 <- dcast(tab2,species~Time,value.var ='z_score')
+gg <- hclust(dist(tab2))
+tab2 <- tab2[gg$order,]
+
+plot_dada <- rbind(linda_tax_nutrient_corr_g1,linda_tax_nutrient_corr_g2)
+plot_dada$tax <- factor(plot_dada$tax,levels=rev(c(rev(tab$genus),rev(tab2$species))))
+
+variable <- c("CHO_gram","Energy_kcal","Fat_gram","Fiber","Protein_gram","Satfat_gram","Sodium")
+data <- plot_dada[plot_dada$nutrient %in% variable,]
+
+ggplot(data,aes(nutrient,tax,fill=coef))+geom_tile(color="white")+scale_fill_gradient2("coefficients",low="#2F7D77",mid="white",high="#9D6622")+geom_text(aes(label=stars))+xlab("")+ylab("")+theme_classic()+theme(axis.ticks.x = element_blank(),axis.text = element_text(color="black",size=10),legend.title = element_text(size=10),axis.text.x = element_text(angle = 90),legend.key.size = unit(0.3, "cm"))
+
+##plot
+data <- linda_tax_nutrient_corr_inter[linda_tax_nutrient_corr_inter$nutrient %in% variable,]
+data$tax <- factor(data$tax,levels=rev(c(rev(tab$genus),rev(tab2$species))))
+data$qval <- cut(data$qval, breaks=c(-Inf, 0.001,0.01, 0.05,Inf))
+
+ggplot(data,aes(nutrient,tax,fill=qval)) + geom_tile(color="white")+
+    theme_classic()+
+    geom_text(aes(label=stars),color="white")+scale_fill_manual("q",breaks=levels(data$qval),values=c("#666666","#888888","#BBBBBB","#EEEEEE"),labels = c("<0.001","<0.01", "<0.05","none"))+theme(axis.text.x = element_text(color="black",size=9,angle = 90),axis.text.y = element_text(color="black",size=10),legend.title = element_text(size=9),legend.key.size = unit(0.2,"cm"))+ylab("")+xlab("")
+
+##Scatter plot
+for (i in colnames(table)[23:67]){
+    p <- ggplot(table,aes(x=Fiber,y=table[,i]))+geom_point(shape=16,aes(color=Treatment),alpha=0.6,size=2)+geom_smooth(color="#CC9933",fill="#cc9933",method=lm)+scale_color_manual(values=c("#CC6666","#9999CC"))+theme_classic()+labs(y=i)+theme(axis.text = element_text(color="black",size=14),title = element_text(size=12),legend.position="none",strip.background = element_blank())+facet_grid(~Treatment,scales = "free")
+    base::print(p)
+    ggsave(p, file= paste("Acetic Acid_",i, ".pdf"),path="revise_figure/plasa_scfa_marker_scatter_plot/",width=5, height=4)
+}
+```
+
+
+
+
+
+

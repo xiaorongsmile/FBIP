@@ -1,0 +1,655 @@
+---
+title: "FBIP_figure4"
+author: "wuxr"
+date: "2024-12-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#EC321 
+##library packages and import data
+```{r pressure, echo=FALSE}
+library(clusterProfiler)
+library(MicrobiomeStat)
+library(ReporterScore)
+
+load_KO_htable()
+EC3.2.1 <- read.table("gene_table/EC3.2.1.txt",header=T,sep="\t",row.names = 1)
+
+```
+
+##LinDA
+```{r pressure, echo=FALSE}
+metadata <- metadata[colnames(EC3.2.1),]
+Linda_EC321 <- linda(
+    feature.dat = EC3.2.1,
+    meta.dat = metadata,
+    formula = '~ Treatment*Time + Age + Gender + (1| Subject)',
+    feature.dat.type = 'count',
+    prev.filter = 0,
+    mean.abund.filter = 0, 
+    max.abund.filter = 0,
+    is.winsor = FALSE,
+    outlier.pct = 0.03,
+    adaptive = FALSE,
+    zero.handling = 'imputation',
+    p.adj.method = "BH",
+    alpha = 0.05,
+    n.cores = 1, 
+    verbose = TRUE
+)
+
+#group1
+g1_meta <- subset(metadata,Treatment=="Group1")
+g1_table <- EC3.2.1[,colnames(EC3.2.1) %in% g1_meta$SampleID]
+g1_table <- g1_table[rowSums(g1_table != 0) > 0, ]
+
+Linda_EC321_g1 <- linda(
+  feature.dat=g1_table,
+  meta.dat=g1_meta,
+  formula='~ Time + Age + Gender + (1| Subject)',
+  feature.dat.type = 'count',
+  prev.filter = 0,
+  mean.abund.filter = 0, 
+  max.abund.filter = 0,
+  is.winsor = FALSE,
+  outlier.pct = 0.03,
+  adaptive = FALSE,
+  zero.handling = 'imputation',
+  p.adj.method = "BH",
+  alpha = 0.05,
+  n.cores = 1, 
+  verbose = TRUE
+)
+
+#group2
+g2_meta <- subset(metadata,Treatment=="Group2")
+g2_table <- EC3.2.1[,colnames(EC3.2.1) %in% g2_meta$SampleID]
+g2_table <- g2_table[rowSums(g2_table != 0) > 0, ]
+
+Linda_EC321_g2 <- linda(
+  feature.dat=g2_table,
+  meta.dat=g2_meta,
+  formula='~ Time + Age + Gender + (1| Subject)',
+  feature.dat.type = 'count',
+  prev.filter = 0,
+  mean.abund.filter = 0, 
+  max.abund.filter = 0,
+  is.winsor = FALSE,
+  outlier.pct = 0.03,
+  adaptive = FALSE,
+  zero.handling = 'imputation',
+  p.adj.method = "BH",
+  alpha = 0.05,
+  n.cores = 1, 
+  verbose = TRUE
+)
+
+#interaction q value
+linda_EC321_inter_q <- as.data.frame(Linda_EC321[["output"]][[9]][,6])
+rownames(linda_EC321_inter_q) <- rownames(Linda_EC321[["output"]][[9]])
+
+for(i in 10:13) {
+  col <- as.data.frame(Linda_EC321[["output"]][[i]][,6])
+  linda_EC321_inter_q <- cbind(linda_EC321_inter_q, col)
+}
+colnames(linda_EC321_inter_q) <- c("W2","W4","W8","W12","W16")
+
+#g1 q value
+linda_EC321_g1_q <- as.data.frame(Linda_EC321_g1[["output"]][[1]][,6])
+rownames(linda_EC321_g1_q) <- rownames(Linda_EC321_g1[["output"]][[1]])
+
+for(i in 2:5) {
+  col <- as.data.frame(Linda_EC321_g1[["output"]][[i]][,6])
+  linda_EC321_g1_q <- cbind(linda_EC321_g1_q, col)
+}
+colnames(linda_EC321_g1_q) <- c("W2","W4","W8","W12","W16")
+
+
+test1 <- linda_EC321_inter_q[apply(linda_EC321_inter_q, 1, function(row) any(row < 0.05)), ]
+test1$otu <- rownames(test1)
+
+test2 <- linda_EC321_g1_q[apply(linda_EC321_g1_q, 1, function(row) any(row < 0.05)), ]
+test2$otu <- rownames(test2)
+
+LinDA_EC321_sig <- intersect(test2$otu,test1$otu)
+
+```
+
+##z_score heatmap and lfc heatmap(figure 4A and S5A)
+```{r pressure, echo=FALSE}
+
+table <- as.data.frame(t(EC3.2.1))
+table <- table[,colnames(table) %in% LinDA_EC321_sig]
+table <- merge(metadata[,c(1,4,8)],table,by.x="SampleID",by.y='row.names')
+table <- table[,-1]
+
+#计算平均数的Z-score
+table %>%  group_by(Treatment,Time) %>% summarise_all(funs(mean))  -> z_score
+z_score <-  as.data.frame(z_score)
+
+for (i in 3:ncol(z_score)){
+    z_score[,i] <- scale(z_score[,i])
+}
+
+data <- melt(z_score,id.vars = c("Treatment","Time"),variable.name = "EC_num",value.name = "z_score")
+data <- merge(data,all_ec_name,by="EC_num")
+
+#聚类排序 
+tab <- subset(data,Treatment=="Group1")
+tab <- dcast(tab,uni_name~Time,value.var ='z_score')
+gg <- hclust(dist(tab))
+tab <- tab[gg$order,]
+data$uni_name <- factor(data$uni_name,levels=tab$uni_name)
+
+ggplot(data,aes(x=Time,y=uni_name,fill=z_score))+geom_tile(color="white",size=0.3)+facet_grid(~Treatment)+scale_fill_gradient2("Z score",low="darkgreen",mid="white",high="#800000")+theme_classic()+labs(x="",y="")+theme(axis.text = element_text(color="black",size=8),strip.background = element_blank(),panel.grid = element_blank(),legend.position = "top")+scale_y_discrete(position = "right")+guides(fill =  guide_colorbar(barwidth = 4, barheight = 0.5))
+
+#####lfc热图
+#group1
+g1_lfc <- as.data.frame(Linda_EC321_g1$output$TimeW2[,2])
+rownames(g1_lfc) <- rownames(Linda_EC321_g1$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_EC321_g1$output[i])
+  g1_lfc <- cbind(g1_lfc, col[,2])
+}
+colnames(g1_lfc) <- c("W2","W4","W8","W12","W16")
+
+g1_lfc$species <- rownames(g1_lfc)
+g1_lfc <- melt(g1_lfc,id.vars = "species",value.name = "lfc",variable.name="Time")
+
+g1_q <- as.data.frame(Linda_EC321_g1$output$TimeW2[,6])
+rownames(g1_q) <- rownames(Linda_EC321_g1$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_EC321_g1$output[i])
+  g1_q <- cbind(g1_q, col[,6])
+}
+colnames(g1_q) <- c("W2","W4","W8","W12","W16")
+g1_q$species <- rownames(g1_q)
+g1_q <- melt(g1_q,id.vars = "species",value.name = "q",variable.name="Time")
+
+g1_tata <- merge(g1_lfc,g1_q,by=c("species","Time"))
+
+g1_tata$group <- "Group1"
+
+#group2
+g1_lfc <- as.data.frame(Linda_EC321_g2$output$TimeW2[,2])
+rownames(g1_lfc) <- rownames(Linda_EC321_g2$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_EC321_g2$output[i])
+  g1_lfc <- cbind(g1_lfc, col[,2])
+}
+colnames(g1_lfc) <- c("W2","W4","W8","W12","W16")
+
+g1_lfc$species <- rownames(g1_lfc)
+g1_lfc <- melt(g1_lfc,id.vars = "species",value.name = "lfc",variable.name="Time")
+
+g1_q <- as.data.frame(Linda_EC321_g2$output$TimeW2[,6])
+rownames(g1_q) <- rownames(Linda_EC321_g2$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_EC321_g2$output[i])
+  g1_q <- cbind(g1_q, col[,6])
+}
+colnames(g1_q) <- c("W2","W4","W8","W12","W16")
+g1_q$species <- rownames(g1_q)
+g1_q <- melt(g1_q,id.vars = "species",value.name = "q",variable.name="Time")
+
+g2_tata <- merge(g1_lfc,g1_q,by=c("species","Time"))
+
+g2_tata$group <- "Group2"
+
+##plot_data
+plot_data <- rbind(g1_tata,g2_tata)
+
+plot_data$Time <- factor(plot_data$Time,levels=c("W2","W4","W8","W12","W16"))
+plot_data$group <- factor(plot_data$group,levels=c("Group1","Group2"))
+plot_data$star <- cut(plot_data$q, breaks=c(-Inf, 0.001, 0.01, 0.05, Inf), label=c("***", "**", "*", ""))
+
+
+data <- plot_data[plot_data$species %in% LinDA_EC321_sig,]
+data <- merge(data,all_ec_name,by.x="species",by.y="EC_num")
+
+data$uni_name <- factor(data$uni_name,levels=tab$uni_name)
+
+b <- ggplot(data,aes(x=Time,y=uni_name,fill=lfc))+geom_tile()+facet_grid(~group)+scale_fill_gradient2("lfc",low="#4d4e9e",mid="white",high="#f39f13")+labs(x="",y="")+geom_text(aes(label=star), color="black",size=4)+theme_classic()+theme(axis.text = element_text(color="black",size=9),legend.title = element_text(size=8),legend.text = element_text(size=9),strip.background = element_blank(),panel.grid = element_blank(),legend.position = 'right',legend.key.size = unit(0.3,"cm"),axis.line = element_blank(),axis.ticks.y=element_blank())+scale_y_discrete(position = "right")
+
+#inter qval画图
+inter_q <- linda_EC321_inter_q
+inter_q$EC_num <- rownames(inter_q)
+inter_q <- melt(inter_q,variable.name = "Time",value.name = "qval")
+
+inter_q$stars <- cut(inter_q$qval, breaks=c(-Inf, 0.001, 0.01, 0.05,Inf), label=c("***", "**", "*", ""))
+inter_q$qval <- cut(inter_q$qval, breaks=c(-Inf, 0.001,0.01, 0.05,Inf))
+inter_q$Time <- factor(inter_q$Time,levels=c("W2","W4","W8","W12","W16"))
+inter_q <- merge(inter_q,all_ec_name,by="EC_num")
+
+
+test <- subset(inter_q,EC_num %in% LinDA_EC321_sig)
+test$uni_name <- factor(test$uni_name,levels = tab$uni_name)
+
+a <- ggplot(test,aes(Time,uni_name,fill=qval)) + geom_tile()+
+    theme_classic()+
+    geom_text(aes(label=stars),color="white")+scale_fill_manual("q",breaks=levels(test$qval),values=c("#666666","#888888","#BBBBBB","#EEEEEE"),labels = c("<0.001","<0.01", "<0.05","none"))+theme(axis.text.x = element_text(color="black",size=9),axis.text.y = element_text(color="black",size=10),legend.position = "left",legend.title = element_text(size=9),legend.key.size = unit(0.2,"cm"),axis.text.y.left = element_blank(),axis.line = element_blank(),axis.ticks.y = element_blank())+ylab("")+xlab("")
+
+a+b+plot_layout(ncol=2,nrow=1,widths = c(2,4))
+```
+
+
+#NR_gene import data
+```{r pressure, echo=FALSE}
+#读入kegg基因注释表
+kegg_gege_table <- read.table("gene_table//ko_finall_gene_table_sort.txt",header=T,sep="\t",row.names = 1)
+#读入gene层级文件
+kegg_gene_tax <- read.table("kegg_related/gene_tree.txt",header = T,sep="\t",quote = "\"", stringsAsFactors = FALSE)
+#读入module层级文件
+kegg_module_tax <- read.table("kegg_related/kegg_module_brite.txt",header = T,sep="\t",quote = "\"", stringsAsFactors = FALSE)
+#读入k_num与module对应表格
+ko_module <- read.table("kegg_related/ko_module.txt",header=T,sep="\t")
+
+```
+
+##NR_gene_LinDA (FIG 4D)
+```{r pressure, echo=FALSE}
+#interaction
+metadata <- metadata[colnames(kegg_gege_table),]
+Linda_kegg_gene <- linda(
+    feature.dat=kegg_gege_table,
+    meta.dat=metadata,
+    formula='~ Treatment*Time + Age + Gender + (1| Subject)',
+    feature.dat.type = 'count',
+    prev.filter = 0,
+    mean.abund.filter = 0, 
+    max.abund.filter = 0,
+    is.winsor = FALSE,
+    outlier.pct = 0.03,
+    adaptive = FALSE,
+    zero.handling = 'imputation',
+    p.adj.method = "BH",
+    alpha = 0.05,
+    n.cores = 1, 
+    verbose = TRUE
+)
+
+#group1
+g1_meta <- subset(metadata,Treatment=="Group1")
+g1_table <- kegg_gege_table[,colnames(kegg_gege_table) %in% g1_meta$SampleID]
+g1_table <- g1_table[rowSums(g1_table != 0) > 0, ]
+
+Linda_kegg_gene_g1 <- linda(
+  feature.dat=g1_table,
+  meta.dat=g1_meta,
+  formula='~ Time + Age + Gender + (1| Subject)',
+  feature.dat.type = 'count',
+  prev.filter = 0,
+  mean.abund.filter = 0, 
+  max.abund.filter = 0,
+  is.winsor = FALSE,
+  outlier.pct = 0.03,
+  adaptive = FALSE,
+  zero.handling = 'imputation',
+  p.adj.method = "BH",
+  alpha = 0.05,
+  n.cores = 1, 
+  verbose = TRUE
+)
+
+#group2
+g2_meta <- subset(metadata,Treatment=="Group2")
+g2_table <- kegg_gege_table[,colnames(kegg_gege_table) %in% g2_meta$SampleID]
+g2_table <- g2_table[rowSums(g2_table != 0) > 0, ]
+
+Linda_kegg_gene_g2 <- linda(
+  feature.dat=g2_table,
+  meta.dat=g2_meta,
+  formula='~ Time + Age + Gender + (1| Subject)',
+  feature.dat.type = 'count',
+  prev.filter = 0,
+  mean.abund.filter = 0, 
+  max.abund.filter = 0,
+  is.winsor = FALSE,
+  outlier.pct = 0.03,
+  adaptive = FALSE,
+  zero.handling = 'imputation',
+  p.adj.method = "BH",
+  alpha = 0.05,
+  n.cores = 1, 
+  verbose = TRUE
+)
+
+#interaction q value
+linda_kegggene_inter_q <- as.data.frame(Linda_kegg_gene[["output"]][[9]][,6])
+rownames(linda_kegggene_inter_q) <- rownames(Linda_kegg_gene[["output"]][[9]])
+
+for(i in 10:13) {
+  col <- as.data.frame(Linda_kegg_gene[["output"]][[i]][,6])
+  linda_kegggene_inter_q <- cbind(linda_kegggene_inter_q, col)
+}
+colnames(linda_kegggene_inter_q) <- c("W2","W4","W8","W12","W16")
+
+#g1 q value
+linda_kegggene_g1_q <- as.data.frame(Linda_kegg_gene_g1[["output"]][[1]][,6])
+rownames(linda_kegggene_g1_q) <- rownames(Linda_kegg_gene_g1[["output"]][[1]])
+
+for(i in 2:5) {
+  col <- as.data.frame(Linda_kegg_gene_g1[["output"]][[i]][,6])
+  linda_kegggene_g1_q <- cbind(linda_kegggene_g1_q, col)
+}
+colnames(linda_kegggene_g1_q) <- c("W2","W4","W8","W12","W16")
+
+
+test1 <- linda_kegggene_inter_q[apply(linda_kegggene_inter_q, 1, function(row) any(row < 0.05)), ]
+test1$otu <- rownames(test1)
+
+test2 <- linda_kegggene_g1_q[apply(linda_kegggene_g1_q, 1, function(row) any(row < 0.05)), ]
+test2$otu <- rownames(test2)
+##group2 has no sig kegg gene
+
+
+LinDA_kegg_gene_sig <- intersect(test2$otu,test1$otu)
+```
+
+###Gene enrichment analysis (figure 4C, S9B)
+```{r pressure, echo=FALSE}
+genes2 <- LinDA_kegg_gene_sig
+
+kegg_rich2 <- enricher(gene = genes2,  #gene list
+    TERM2GENE = KO_htable[,c('level3_id', 'KO_id')],
+    TERM2NAME = KO_htable[c('level3_id', 'level3_name')],
+    pAdjustMethod = 'BH',  #指定 p 值校正方法
+    pvalueCutoff = 0.05,  #指定 p 值阈值（可指定 1 以输出全部）
+    qvalueCutoff = 0.2)
+
+dotplot(kegg_rich2)
+View(kegg_rich@result2) ###看富集的通路中有哪些基因
+#plot fig 4C
+rich_plot <- kegg_rich2@result
+rich_plot <- rich_plot[rich_plot$p.adjust < 0.05,]
+rich_plot <- rich_plot[order(rich_plot$Count,decreasing = T),]
+rich_plot$uni_name <- paste(rich_plot$Description,rich_plot$ID)
+rich_plot$uni_name <- factor(rich_plot$uni_name,levels = c(rev(rich_plot$uni_name)))
+rich_plot$GeneRatio2 <- rich_plot$Count /561  #change according significant genes
+
+ggplot(rich_plot,aes(GeneRatio2,uni_name))+
+    geom_point(shape=21,color="black",aes(fill=p.adjust,size=Count))+
+    scale_fill_viridis(option="viridis")+
+    theme_classic()+
+    theme(legend.text = element_text(size = 8),
+          legend.title = element_blank(),
+          plot.title = element_blank(),
+          axis.title=element_blank(),
+          axis.text=element_text(size=9,colour = "black"),axis.ticks.y = element_blank(),panel.grid.minor = element_blank(),panel.grid.major.x = element_line(),legend.key.size = unit(0.3, "cm"))
+
+
+#Figure S9B
+##define function
+convert_to_list <- function(data, column_index){    
+    unique_values <- unique(data[, column_index][!is.na(data[, column_index]) & data[, column_index] != ""])   # 过滤掉NA和空字符串
+    
+    list_data <- lapply(unique_values, function(val) {
+        subset_data <- data[data[, column_index] == val, ]
+        
+        next_col_has_data <- column_index < ncol(data) && 
+            any(!is.na(subset_data[, column_index + 1]) & subset_data[, column_index + 1] != "")
+        
+        if (next_col_has_data) {
+            child_list <- convert_to_list(subset_data, column_index + 1)
+            list(name = val, children = child_list)
+        } else {
+            list(name = val)
+        }
+    })
+    return(list_data)
+}
+
+
+test <- KO_htable[KO_htable$level3_id %in% rich_plot$ID,]
+test <- test[,c(2,4,6)]
+df_unique <- unique(test)
+df_unique$root <- "root"
+df_unique <- df_unique[,c("root","level1_name", "level2_name", "level3_name")]
+
+nested_list <- convert_to_list(df_unique, 1)
+nested_list <- nested_list[[1]]
+
+diagonalNetwork(List = nested_list, fontSize = 25, opacity = 3,height = 800,width = 600)
+```
+
+#LinDA_pathway
+```{r pressure, echo=FALSE}
+table <- path_table[-c(1,2),]
+table <- as.data.frame(t(table))
+table <- table[,!colSums(table == 0) > 600]
+table <- as.data.frame(t(table))
+#interaction
+metadata <- metadata[colnames(table),]
+Linda_pathway <- linda(
+    feature.dat=table,
+    meta.dat=metadata,
+    formula='~ Treatment*Time + Age + Gender + (1| Subject)',
+    feature.dat.type = 'count',
+    prev.filter = 0,
+    mean.abund.filter = 0, 
+    max.abund.filter = 0,
+    is.winsor = FALSE,
+    outlier.pct = 0.03,
+    adaptive = FALSE,
+    zero.handling = 'imputation',
+    p.adj.method = "BH",
+    alpha = 0.05,
+    n.cores = 1, 
+    verbose = TRUE
+)
+
+#group1
+g1_meta <- subset(metadata,Treatment=="Group1")
+g1_table <- table[,colnames(table) %in% g1_meta$SampleID]
+g1_table <- g1_table[rowSums(g1_table != 0) > 0, ]
+
+Linda_pathway_g1 <- linda(
+  feature.dat=g1_table,
+  meta.dat=g1_meta,
+  formula='~ Time + Age + Gender + (1| Subject)',
+  feature.dat.type = 'count',
+  prev.filter = 0,
+  mean.abund.filter = 0, 
+  max.abund.filter = 0,
+  is.winsor = FALSE,
+  outlier.pct = 0.03,
+  adaptive = FALSE,
+  zero.handling = 'imputation',
+  p.adj.method = "BH",
+  alpha = 0.05,
+  n.cores = 1, 
+  verbose = TRUE
+)
+
+#group2
+g2_meta <- subset(metadata,Treatment=="Group2")
+
+g2_table <- table[,colnames(table) %in% g2_meta$SampleID]
+g2_table <- g2_table[rowSums(g2_table != 0) > 0, ]
+
+Linda_pathway_g2 <- linda(
+  feature.dat=g2_table,
+  meta.dat=g2_meta,
+  formula='~ Time + Age + Gender + (1| Subject)',
+  feature.dat.type = 'count',
+  prev.filter = 0,
+  mean.abund.filter = 0, 
+  max.abund.filter = 0,
+  is.winsor = FALSE,
+  outlier.pct = 0.03,
+  adaptive = FALSE,
+  zero.handling = 'imputation',
+  p.adj.method = "BH",
+  alpha = 0.05,
+  n.cores = 1, 
+  verbose = TRUE
+)
+
+#interaction q value
+linda_pathway_inter_q <- as.data.frame(Linda_pathway[["output"]][[9]][,6])
+rownames(linda_pathway_inter_q) <- rownames(Linda_pathway[["output"]][[9]])
+
+for(i in 10:13) {
+  col <- as.data.frame(Linda_pathway[["output"]][[i]][,6])
+  linda_pathway_inter_q <- cbind(linda_pathway_inter_q, col)
+}
+colnames(linda_pathway_inter_q) <- c("W2","W4","W8","W12","W16")
+
+#g1 q value
+linda_pathway_g1_q <- as.data.frame(Linda_pathway_g1[["output"]][[1]][,6])
+rownames(linda_pathway_g1_q) <- rownames(Linda_pathway_g1[["output"]][[1]])
+
+for(i in 2:5) {
+  col <- as.data.frame(Linda_pathway_g1[["output"]][[i]][,6])
+  linda_pathway_g1_q <- cbind(linda_pathway_g1_q, col)
+}
+colnames(linda_pathway_g1_q) <- c("W2","W4","W8","W12","W16")
+
+
+test1 <- linda_pathway_inter_q[apply(linda_pathway_inter_q, 1, function(row) any(row < 0.01)), ]
+test1$otu <- rownames(test1)
+
+test2 <- linda_pathway_g1_q[apply(linda_pathway_g1_q, 1, function(row) any(row < 0.01)), ]
+test2$otu <- rownames(test2)
+
+linda_sig_path <- intersect(test2$otu,test1$otu)
+
+```
+
+###LinDA显著pathway的lfc和q值热图(FIG 4E, S9A)
+```{r pressure, echo=FALSE}
+#group1
+g1_lfc <- as.data.frame(Linda_pathway_g1$output$TimeW2[,2])
+rownames(g1_lfc) <- rownames(Linda_pathway_g1$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_pathway_g1$output[i])
+  g1_lfc <- cbind(g1_lfc, col[,2])
+}
+colnames(g1_lfc) <- c("W2","W4","W8","W12","W16")
+
+g1_lfc$species <- rownames(g1_lfc)
+g1_lfc <- melt(g1_lfc,id.vars = "species",value.name = "lfc",variable.name="Time")
+
+g1_q <- as.data.frame(Linda_pathway_g1$output$TimeW2[,6])
+rownames(g1_q) <- rownames(Linda_pathway_g1$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_pathway_g1$output[i])
+  g1_q <- cbind(g1_q, col[,6])
+}
+colnames(g1_q) <- c("W2","W4","W8","W12","W16")
+g1_q$species <- rownames(g1_q)
+g1_q <- melt(g1_q,id.vars = "species",value.name = "q",variable.name="Time")
+
+g1_tata <- merge(g1_lfc,g1_q,by=c("species","Time"))
+
+g1_tata$group <- "Group1"
+
+#group2
+g1_lfc <- as.data.frame(Linda_pathway_g2$output$TimeW2[,2])
+rownames(g1_lfc) <- rownames(Linda_pathway_g2$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_pathway_g2$output[i])
+  g1_lfc <- cbind(g1_lfc, col[,2])
+}
+colnames(g1_lfc) <- c("W2","W4","W8","W12","W16")
+
+g1_lfc$species <- rownames(g1_lfc)
+g1_lfc <- melt(g1_lfc,id.vars = "species",value.name = "lfc",variable.name="Time")
+
+g1_q <- as.data.frame(Linda_pathway_g2$output$TimeW2[,6])
+rownames(g1_q) <- rownames(Linda_pathway_g2$output$TimeW2)
+for(i in 2:5) {
+  col <- as.data.frame(Linda_pathway_g2$output[i])
+  g1_q <- cbind(g1_q, col[,6])
+}
+colnames(g1_q) <- c("W2","W4","W8","W12","W16")
+g1_q$species <- rownames(g1_q)
+g1_q <- melt(g1_q,id.vars = "species",value.name = "q",variable.name="Time")
+
+g2_tata <- merge(g1_lfc,g1_q,by=c("species","Time"))
+
+g2_tata$group <- "Group2"
+
+##plot_data
+plot_data <- rbind(g1_tata,g2_tata)
+
+plot_data$Time <- factor(plot_data$Time,levels=c("W2","W4","W8","W12","W16"))
+plot_data$group <- factor(plot_data$group,levels=c("Group1","Group2"))
+plot_data$star <- cut(plot_data$q, breaks=c(-Inf, 0.0001, 0.001, 0.01, Inf), label=c("***", "**", "*", ""))
+plot_data <- merge(metacyc_pathway_brite[,1:2],plot_data,by.x="path_id",by.y="species")
+plot_data$uni_name <- paste(plot_data$path_name,plot_data$path_id)
+
+
+data <- plot_data[plot_data$path_id %in% linda_sig_path,]
+
+ggplot(data,aes(x=Time,y=species,fill=lfc))+geom_tile()+facet_grid(~group)+scale_fill_gradient2("lfc",low="#4d4e9e",mid="white",high="#f39f13")+labs(x="",y="")+geom_text(aes(label=star), color="black",size=4)+theme_classic()+theme(axis.text = element_text(color="black",size=9),legend.title = element_text(size=8),legend.text = element_text(size=9),strip.background = element_blank(),panel.grid = element_blank(),legend.position = 'right',legend.key.size = unit(0.3,"cm"),axis.line = element_blank(),axis.text.y = element_blank(),axis.ticks.y=element_blank())+scale_y_discrete(position = "left")
+
+```
+
+#CAZY (fig S5B)
+```{r pressure, echo=FALSE}
+cazy_table <- read.table("cazy_table/cazy_tpm_table.txt",header=T,sep="\t")
+cazy_sum_table <- aggregate(cazy_table[,2:663],list(cazy_table[,1]),sum)
+cazy_sum_table$sum <- rowSums(cazy_sum_table[,2:663])
+head(cazy_sum_table)
+
+table <- cazy_final_sum_table
+table <- as.data.frame(table)
+rownames(table) <- table$Group.1
+table <- table[,-c(1,664)]
+
+starch <- c("CBM26","CBM74","CBM82","CBM83","GH13_18","GH13_20","GH13_28","GH13_36","GH13_41")
+pectin <- c("GH53","GH93")
+mucin <- c("CBM32","CBM50","CBM51","GH116","GH117","GH133","GH154","GH16_24","PL11_1","PL15_2","PL29","PL33_2","PL37","PL8_2")
+cellulose <- c("CBM16","GH44","GH94")
+arabinoxylan <- c("CBM61","CBM65","CE1","GH16","GH30","GH42","GH43_12","GH43_22","GH43_26","GH43_28","GH5_2","GH5_25","GH5_46")
+agarose <- c("GH16_14","GH16_16","GH86")
+
+
+table['starch',] <- colSums(table[starch,])
+table['pectin',] <- colSums(table[pectin,])
+table['mucin',] <- colSums(table[mucin,])
+table['cellulose',] <- colSums(table[cellulose,])
+table['arabinoxylan',] <- colSums(table[arabinoxylan,])
+table['agarose',] <- colSums(table[agarose,])
+cazy_class <- table[c(556:561),]
+
+plot <- as.data.frame(t(cazy_class))
+plot <- merge(metadata[,c("Treatment","time_num","Time","SampleID","Subject")],plot, by.x="SampleID",by.y='row.names')
+
+ggplot(plot,aes(x=Time,y=starch))+
+    geom_boxplot(aes(fill=Treatment),size=0.3,outlier.fill="white",outlier.color="white",width=0.4)+
+    scale_fill_manual(values = group_color)+
+    facet_wrap(~Treatment)+
+    geom_jitter(width = 0.15,size=0.5)+
+    theme_classic()+
+    xlab("")+
+    ylab("Starch Related Gene(CPM)")+theme(panel.grid = element_blank(),legend.position = "none", axis.text=element_text(size=12,color="black"),axis.title = element_text(size=16),axis.text.x=element_text(hjust = 0.5,vjust = 0.5),strip.background = element_blank())
+
+#LMM
+W2_P <- list()
+W4_P <- list()
+W8_P <- list()
+W12_P <- list()
+W16_P <- list()
+
+for (i in 6:11){
+  fit.lmer <- lmer(plot[,i] ~ Treatment*Time+(1 | Subject),data = plot)
+  W2_P[[i]] <- summary(fit.lmer)$coefficients[8,5]
+  W4_P[[i]] <- summary(fit.lmer)$coefficients[9,5]
+  W8_P[[i]] <- summary(fit.lmer)$coefficients[10,5]
+  W12_P[[i]] <- summary(fit.lmer)$coefficients[11,5]
+  W16_P[[i]] <- summary(fit.lmer)$coefficients[12,5]
+}
+cazy_gene_class_lmm <- data.frame(cazy_gene_class=colnames(plot)[6:11],
+                      W2_P=unlist(W2_P),
+                       W4_P=unlist(W4_P),
+                       W8_P=unlist(W8_P),
+                       W12_P=unlist(W12_P),
+                       W16_P=unlist(W16_P),
+                       stringsAsFactors = F)
+```
