@@ -1,5 +1,5 @@
 ---
-title: "FBIP_figure4"
+title: "FBIP_figure4_microbiome_function"
 author: "wuxr"
 date: "2024-12-15"
 output: html_document
@@ -14,9 +14,10 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r pressure, echo=FALSE}
 library(clusterProfiler)
 library(MicrobiomeStat)
-library(ReporterScore)
 
+library(ReporterScore)
 load_KO_htable()
+
 EC3.2.1 <- read.table("gene_table/EC3.2.1.txt",header=T,sep="\t",row.names = 1)
 
 ```
@@ -520,7 +521,7 @@ linda_sig_path <- intersect(test2$otu,test1$otu)
 
 ```
 
-###LinDA显著pathway的lfc和q值热图(FIG 4E, S9A)
+###LinDA sig pathway heatmap(FIG 4E, S9A)
 ```{r pressure, echo=FALSE}
 #group1
 g1_lfc <- as.data.frame(Linda_pathway_g1$output$TimeW2[,2])

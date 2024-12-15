@@ -1,0 +1,70 @@
+---
+title: "library packages"
+author: "wuxr"
+date: "2024-12-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r pressure, echo=FALSE}
+library(MicrobiomeStat)
+library(mediation)
+library(corrplot)
+library(ggstar)
+library(ggtreeExtra)
+#library(MicrobiotaProcess)
+library(ggtree)
+library(ggbreak)
+library(lmerTest)
+library(lme4) 
+library(broom.mixed)
+library(phyloseq)
+library(vegan)
+library(reshape2)
+library(ggplot2)
+library(magrittr)
+library(dplyr)
+library(tidyr)
+library(pheatmap)
+library(microbiome)
+#library(wesanderson)
+library(RColorBrewer)
+library(ggpubr)
+#library(ggalt)
+#library(pairwiseAdonis)
+#library(DirichletMultinomial)
+#library(ggsankey)
+#library(tidyverse)
+#library(gapminder)
+library(patchwork)
+library(Maaslin2)
+library(gridExtra)
+#library(ggstatsplot)
+library(ggside)
+library(devtools)
+library(d3heatmap)
+library(ggrepel)
+library(ade4)
+library(RColorBrewer)
+library(ggalluvial)
+#library(ggTimeSeries)
+library(viridis)
+#library(hrbrthemes)
+library(grid)
+#library(LRTT)
+library(igraph)
+#library(SpiecEasi)
+#library(RCy3)
+library(broom)
+#library(minque)
+#library(ggClusterNet)
+library(clusterProfiler)
+library(ReporterScore)
+library(networkD3)
+library(ggnewscale)
+```
+

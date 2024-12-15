@@ -1,0 +1,343 @@
+---
+title: "figure7_mediation analysis"
+author: "wuxr"
+date: "2024-12-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#load packages
+```{r pressure, echo=FALSE}
+library(mediation)
+library(lme4)
+library(lmerTest)
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(parallel)
+```
+
+#make table(plasma_metabolites)
+```{r pressure, echo=FALSE}
+species_table <- as.data.frame(t(species_otu_table))
+genus_table <- as.data.frame(t(genus_otu_table))
+meta.tab <- merge(species_table,genus_table,by='row.names')
+meta.tab <- merge(metadata[c(1:8,23:37)],meta.tab,by.x='SampleID',by.y="Row.names",all=T)
+meta.tab <- merge(meta.tab,plasma_metabolites_meta[,c(1:2,9:219)],by=c("Subject","Time"),all=T)
+meta.tab[,9:ncol(meta.tab)] <- lapply(meta.tab[,9:ncol(meta.tab)],scale)
+
+species <- c(sig_species,sig_genus)
+marker <- colnames(metadata)[c(23:27,29:37)]
+metabolite <- plasma_metabolite_sig
+covar <- c("Age","Gender")
+
+params_list <- expand.grid(species, marker, metabolite)
+colnames(params_list) <- c("spe","ser","m")
+#Group1
+g1.mid.tab <- subset(meta.tab,Treatment=="Group1")
+
+# forward mediation --------------------
+g1_Mediation.forward_plasma <- NULL
+
+#define function
+run_forward_mediation_analysis <- function(spe, ser, m){
+  spe<-as.character(spe)
+  ser<-as.character(ser)
+  m<-as.character(m)
+  
+  tab1 <- g1.mid.tab[,c("Age","Gender","Subject",spe,ser,m)]
+  tab1 <- na.omit(tab1)
+  id = paste(spe, m, ser, sep = "|")
+  
+  model.m = lme4::lmer(as.formula( paste("`",m,"`", " ~ ", spe,"+ (1 | Subject)",sep = "")), data = tab1)
+  model.y = lme4::lmer(as.formula( paste(ser, " ~ ", spe," + ", "`",m,"`","+ (1 | Subject)",sep = "")), data = tab1)
+  summary = summary(mediate(model.m,model.y,treat=spe,mediator=m,boot=F,sims=500))
+  res <- capture.output(summary,append=FALSE)
+  
+  tmp <-  base::strsplit(res[grep("ACME",res)],"\\s")[[1]]
+  tmp <- tmp[tmp != "" & tmp!="."]
+  tmp <- tmp[!grepl("*",tmp,fixed = T)] # remove stars in case the last element is star
+  ACME.p <- tmp[length(tmp)]
+  ACME.Es <- tmp[3]
+  tmp <- base::strsplit(res[grep("ADE",res)],"\\s")[[1]]
+  tmp <- tmp[tmp != "" & tmp!="."]
+  tmp <- tmp[!grepl("*",tmp,fixed = T) ]
+  ADE.p <- tmp[length(tmp)]
+  ADE.Es <- tmp[3]
+  tmp <- base::strsplit(res[grep("Total",res)],"\\s")[[1]]
+  tmp <- tmp[tmp != "" & tmp!="."]
+  tmp <- tmp[!grepl("*",tmp,fixed = T) ]
+  Total.p <- tmp[length(tmp)]
+  Total.Es <- tmp[3]
+  tmp <- base::strsplit(res[grep("Prop. Mediated", res)],"\\s")[[1]]
+  tmp <- tmp[tmp != "" ]
+  tmp <- tmp[!grepl("*",tmp,fixed = T)]
+  i_str = which(grepl("Mediated", tmp))
+  prop.mediated <- tmp[(i_str + 2)]
+  prop.p <- tmp[length(tmp)]
+  return(c(id, ACME.p, ACME.Es, ADE.p, ADE.Es, Total.p, Total.Es, prop.mediated, prop.p))
+}
+
+#并行循环
+results <- mclapply(1:nrow(params_list), function(i) {
+  cat(i,"\n")
+  run_forward_mediation_analysis(params_list$spe[i], params_list$ser[i], params_list$m[i])
+}, mc.cores = 96) # 使用所有可用核心 - 1
+
+#合并结果
+g1_Mediation.forward_plasma <- do.call(rbind, results)
+
+
+# reverse mediation --------------------
+g1_Mediation.reverse_plasma <- NULL
+
+#define function
+run_reverse_mediation_analysis <- function(spe, ser, m){
+  spe<-as.character(spe)
+  ser<-as.character(ser)
+  m<-as.character(m)
+  
+  tab1 <- g1.mid.tab[,c("Age","Gender","Subject",spe,ser,m)]
+  tab1 <- na.omit(tab1)
+  id = paste(spe, ser, m, sep = "|")
+  
+  model.m = lme4::lmer(as.formula( paste(ser, " ~ ", spe,"+ (1 | Subject)", sep = "")), data = tab1)
+  model.y = lme4::lmer(as.formula( paste("`",m,"`", " ~ ", spe," + ", ser,"+ (1 | Subject)",sep = "")), data = tab1)
+  summary = summary(mediate(model.m,model.y,treat=spe,mediator=ser,boot=F,sims=500))
+  res <- capture.output(summary,append=FALSE)
+  
+  tmp <-  base::strsplit(res[grep("ACME",res)],"\\s")[[1]]
+  tmp <- tmp[tmp != "" & tmp!="."]
+  tmp <- tmp[!grepl("*",tmp,fixed = T)] # remove stars in case the last element is star
+  ACME.p <- tmp[length(tmp)]
+  ACME.Es <- tmp[3]
+  
+  tmp <- base::strsplit(res[grep("ADE",res)],"\\s")[[1]]
+  tmp <- tmp[tmp != "" & tmp!="."]
+  tmp <- tmp[!grepl("*",tmp,fixed = T) ]
+  ADE.p <- tmp[length(tmp)]
+  ADE.Es <- tmp[3]
+  
+  tmp <- base::strsplit(res[grep("Total",res)],"\\s")[[1]]
+  tmp <- tmp[tmp != "" & tmp!="."]
+  tmp <- tmp[!grepl("*",tmp,fixed = T) ]
+  Total.p <- tmp[length(tmp)]
+  Total.Es <- tmp[3]
+  
+  tmp <- base::strsplit(res[grep("Prop. Mediated", res)],"\\s")[[1]]
+  tmp <- tmp[tmp != "" ]
+  tmp <- tmp[!grepl("*",tmp,fixed = T)]
+  i_str = which(grepl("Mediated", tmp))
+  prop.mediated <- tmp[(i_str + 2)]
+  prop.p <- tmp[length(tmp)]
+  
+  return(c(id, ACME.p, ACME.Es, ADE.p, ADE.Es, Total.p, Total.Es, prop.mediated, prop.p))
+}
+
+#并行循环
+results <- mclapply(1:nrow(params_list), function(i) {
+  cat(i,"\n")
+  run_reverse_mediation_analysis(params_list$spe[i], params_list$ser[i], params_list$m[i])
+}, mc.cores = 96) # 使用96核心
+
+#合并结果
+g1_Mediation.reverse_plasma <- do.call(rbind, results)
+
+
+###group2
+g1.mid.tab <- subset(meta.tab,Treatment=="Group2")
+
+# forward mediation --------------------
+g2_Mediation.forward_plasma <- NULL
+
+results <- mclapply(1:nrow(params_list), function(i) {
+  cat(i,"\n")
+  run_forward_mediation_analysis(params_list$spe[i], params_list$ser[i], params_list$m[i])
+}, mc.cores = 96)
+
+g2_Mediation.forward_plasma <- do.call(rbind, results)
+
+
+# reverse mediation --------------------
+g2_Mediation.reverse_plasma <- NULL
+
+results <- mclapply(1:nrow(params_list), function(i) {
+  cat(i,"\n")
+  run_reverse_mediation_analysis(params_list$spe[i], params_list$ser[i], params_list$m[i])
+}, mc.cores = 96)
+
+g2_Mediation.reverse_plasma <- do.call(rbind, results)
+```
+
+
+#make table(fecal_meta)
+```{r pressure, echo=FALSE}
+species <- c(sig_species,sig_genus)
+metabolite <- fecal_metabolites_sig
+marker <- colnames(metadata)[c(23:27,29:37)]
+
+species_table <- as.data.frame(t(species_otu_table))
+genus_table <- as.data.frame(t(genus_otu_table))
+meta.tab <- merge(species_table,genus_table,by='row.names')
+meta.tab <- merge(metadata[c(1:8,23:37)],meta.tab,by.x='SampleID',by.y="Row.names",all=T)
+meta.tab <- merge(meta.tab,fecal_metabolites_meta[,c(1:2,9:219)],by=c("Subject","Time"),all=T)
+meta.tab[,9:ncol(meta.tab)] <- lapply(meta.tab[,9:ncol(meta.tab)],scale)
+
+params_list <- expand.grid(species, marker, metabolite)
+colnames(params_list) <- c("spe","ser","m")
+
+#Group1
+g1.mid.tab <- subset(meta.tab,Treatment=="Group1")
+
+# forward mediation --------------------
+g1_Mediation.forward_fecal <- NULL
+
+results <- mclapply(1:nrow(params_list), function(i) {
+  cat(i,"\n")
+  run_forward_mediation_analysis(params_list$spe[i], params_list$ser[i], params_list$m[i])
+}, mc.cores = 96)
+
+g1_Mediation.forward_fecal <- do.call(rbind, results)
+
+# reverse mediation --------------------
+g1_Mediation.reverse_fecal <- NULL
+
+results <- mclapply(1:nrow(params_list), function(i) {
+  cat(i,"\n")
+  run_reverse_mediation_analysis(params_list$spe[i], params_list$ser[i], params_list$m[i])
+}, mc.cores = 96)
+
+g1_Mediation.reverse_fecal <- do.call(rbind, results)
+
+
+#Group2
+g1.mid.tab <- subset(meta.tab,Treatment=="Group2")
+
+# forward mediation --------------------
+g2_Mediation.forward_fecal <- NULL
+
+results <- mclapply(1:nrow(params_list), function(i) {
+  cat(i,"\n")
+  run_forward_mediation_analysis(params_list$spe[i], params_list$ser[i], params_list$m[i])
+}, mc.cores = 96)
+
+g2_Mediation.forward_fecal <- do.call(rbind, results)
+
+# reverse mediation --------------------
+g2_Mediation.reverse_fecal <- NULL
+
+results <- mclapply(1:nrow(params_list), function(i) {
+  cat(i,"\n")
+  run_reverse_mediation_analysis(params_list$spe[i], params_list$ser[i], params_list$m[i])
+}, mc.cores = 96)
+
+g2_Mediation.reverse_fecal <- do.call(rbind, results)
+
+```
+
+#mediation plot_FIG7 (G2 HAS NO SIG)
+##fecal metabolites 
+```{r pressure, echo=FALSE}
+load("C:/Users/wuxr/OneDrive - Wilmar International Limited/Desktop/FBIP_revision_analysis/FBIP_REVISE_mediation.Rdata")
+##forward
+g1_Mediation.forward_fecal <- as.data.frame(g1_Mediation.forward_fecal)
+colnames(g1_Mediation.forward_fecal) <- c("Treat_Mediator_Y", "ACME.p","ACME.Es" ,"ADE.p","ADE.Es","Total.p"," Total.Es","prop.mediated","prop.p")
+
+test <- g1_Mediation.forward_fecal
+
+test <- test %>% mutate(ACME.p = ifelse(ACME.p == "<2e-16", 2e-16, as.numeric(ACME.p)))
+test <- test %>% mutate(Total.p = ifelse(Total.p == "<2e-16", 2e-16, as.numeric(Total.p)))
+test$prop.mediated <- as.numeric(test$prop.mediated)
+
+#画图
+test2 <- test
+test2$`Total.p` <- p.adjust(test2$`Total.p`,method = "BH")
+test2$ACME.p <- p.adjust(test2$ACME.p,method = "BH")
+
+test2 <- subset(test2, prop.mediated > 0)
+test2 <- subset(test2, ACME.p < 0.05 & Total.p < 0.25)
+test2 <- test2 %>% separate(Treat_Mediator_Y, into = c("species", "metabolites","marker"), sep = "\\|")
+test2$species <- gsub("s__","",test2$species)
+
+ggplot(test2,aes(axis1=species, axis2 = metabolites, axis3=marker)) +
+    geom_alluvium(aes(fill=metabolites))+geom_stratum(width = 5/12, fill ="white", color = "black",size=0.2) + geom_label(stat = "stratum",aes(label = after_stat(stratum)),label.padding = unit(0, "lines"),label.r = unit(0, "lines"),label.size = 0, size=1.8)+theme_classic()+scale_x_discrete(limits = c("Species", "metabolites","Clinical outcomes"))+theme(axis.text.y = element_blank(),axis.ticks = element_blank(),legend.position = "none",axis.text = element_text(color="black"),axis.line = element_blank())
+
+##reverse
+g1_Mediation.reverse_fecal <- as.data.frame(g1_Mediation.reverse_fecal)
+colnames(g1_Mediation.reverse_fecal) <- c("Treat_Mediator_Y", "ACME.p","ACME.Es" ,"ADE.p","ADE.Es","Total.p"," Total.Es","prop.mediated","prop.p")
+
+test <- g1_Mediation.reverse_fecal
+
+test <- test %>% mutate(ACME.p = ifelse(ACME.p == "<2e-16", 2e-16, as.numeric(ACME.p)))
+test <- test %>% mutate(Total.p = ifelse(Total.p == "<2e-16", 2e-16, as.numeric(Total.p)))
+test$prop.mediated <- as.numeric(test$prop.mediated)
+
+#画图
+test2 <- test
+test2$`Total.p` <- p.adjust(test2$`Total.p`,method = "BH")
+test2$ACME.p <- p.adjust(test2$ACME.p,method = "BH")
+
+test2 <- subset(test2, prop.mediated > 0)
+test2 <- subset(test2, ACME.p < 0.05 & Total.p < 0.25)
+test2 <- test2 %>% separate(Treat_Mediator_Y, into = c("species", "metabolites","marker"), sep = "\\|")
+test2$species <- gsub("s__","",test2$species)
+
+ggplot(test2,aes(axis1=species, axis2 = metabolites, axis3=marker)) +
+    geom_alluvium(aes(fill=metabolites))+geom_stratum(width = 5/12, fill ="white", color = "black",size=0.2) + geom_label(stat = "stratum",aes(label = after_stat(stratum)),label.padding = unit(0, "lines"),label.r = unit(0, "lines"),label.size = 0, size=1.8)+theme_classic()+scale_x_discrete(limits = c("Species", "metabolites","Clinical outcomes"))+theme(axis.text.y = element_blank(),axis.ticks = element_blank(),legend.position = "none",axis.text = element_text(color="black"),axis.line = element_blank())
+```
+
+
+##plasma_metabolites(G2 HAS NO SIG)
+```{r pressure, echo=FALSE}
+#forward
+g1_Mediation.forward_plasma <- as.data.frame(g1_Mediation.forward_plasma)
+colnames(g1_Mediation.forward_plasma) <- c("Treat_Mediator_Y", "ACME.p","ACME.Es" ,"ADE.p","ADE.Es","Total.p"," Total.Es","prop.mediated","prop.p")
+
+test <- g1_Mediation.forward_plasma
+
+test <- test %>% mutate(ACME.p = ifelse(ACME.p == "<2e-16", 2e-16, as.numeric(ACME.p)))
+test <- test %>% mutate(Total.p = ifelse(Total.p == "<2e-16", 2e-16, as.numeric(Total.p)))
+test$prop.mediated <- as.numeric(test$prop.mediated)
+
+#画图
+test2 <- test
+test2$`Total.p` <- p.adjust(test2$`Total.p`,method = "BH")
+test2$ACME.p <- p.adjust(test2$ACME.p,method = "BH")
+
+test2 <- subset(test2, prop.mediated > 0)
+test2 <- subset(test2, ACME.p < 0.05 & Total.p < 0.25)
+test2 <- test2 %>% separate(Treat_Mediator_Y, into = c("species", "metabolites","marker"), sep = "\\|")
+test2$species <- gsub("s__","",test2$species)
+
+ggplot(test2,aes(axis1=species, axis2 = metabolites, axis3=marker)) +
+    geom_alluvium(aes(fill=metabolites))+geom_stratum(width = 5/12, fill ="white", color = "black",size=0.2) + geom_label(stat = "stratum",aes(label = after_stat(stratum)),label.padding = unit(0, "lines"),label.r = unit(0, "lines"),label.size = 0, size=1.8)+theme_classic()+scale_x_discrete(limits = c("Species", "metabolites","Clinical outcomes"))+theme(axis.text.y = element_blank(),axis.ticks = element_blank(),legend.position = "none",axis.text = element_text(color="black"),axis.line = element_blank())
+
+#reverse
+g1_Mediation.reverse_plasma <- as.data.frame(g1_Mediation.reverse_plasma)
+colnames(g1_Mediation.reverse_plasma) <- c("Treat_Mediator_Y", "ACME.p","ACME.Es" ,"ADE.p","ADE.Es","Total.p"," Total.Es","prop.mediated","prop.p")
+
+test <- g1_Mediation.reverse_plasma
+
+test <- test %>% mutate(ACME.p = ifelse(ACME.p == "<2e-16", 2e-16, as.numeric(ACME.p)))
+test <- test %>% mutate(Total.p = ifelse(Total.p == "<2e-16", 2e-16, as.numeric(Total.p)))
+test$prop.mediated <- as.numeric(test$prop.mediated)
+
+#画图
+test2 <- test
+test2$`Total.p` <- p.adjust(test2$`Total.p`,method = "BH")
+test2$ACME.p <- p.adjust(test2$ACME.p,method = "BH")
+
+test2 <- subset(test2, prop.mediated > 0)
+test2 <- subset(test2, ACME.p < 0.05 & Total.p < 0.25)
+test2 <- test2 %>% separate(Treat_Mediator_Y, into = c("species", "metabolites","marker"), sep = "\\|")
+test2$species <- gsub("s__","",test2$species)
+
+ggplot(test2,aes(axis1=species, axis2 = metabolites, axis3=marker)) +
+    geom_alluvium(aes(fill=metabolites))+geom_stratum(width = 5/12, fill ="white", color = "black",size=0.2) + geom_label(stat = "stratum",aes(label = after_stat(stratum)),label.padding = unit(0, "lines"),label.r = unit(0, "lines"),label.size = 0, size=1.8)+theme_classic()+scale_x_discrete(limits = c("Species", "metabolites","Clinical outcomes"))+theme(axis.text.y = element_blank(),axis.ticks = element_blank(),legend.position = "none",axis.text = element_text(color="black"),axis.line = element_blank())
+```
+
+

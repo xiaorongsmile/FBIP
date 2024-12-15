@@ -1,0 +1,553 @@
+---
+title: "figure_5_metabolites"
+author: "wuxr"
+date: "2024-12-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#fecal metabolite import data
+```{r pressure, echo=FALSE}
+fecal_metabolites <- read.table("metabolites data/fecal metabolites data.txt",header=T,sep="\t",check.names = FALSE)
+fecal_metabolites_meta <- merge(metadata[,1:8],fecal_metabolites,by=c("Subject","Time"))
+fecal_metabolite_name_group <- read.table("metabolites data/fecal_metabolites_name_group.txt",header=T,sep="\t")
+```
+
+##fecal metabolites PCOA(FIG 5A)
+```{r pressure, echo=FALSE}
+table <- fecal_metabolites_meta[,c(3,9:203)]
+rownames(table) <- table$SampleID
+table <- table[,-1]
+table <- na.omit(table)
+
+dis <- vegdist(table,method="bray",na.rm = TRUE)
+pcoa <- ape::pcoa(dis,correction ="none")
+
+#permanova
+data <- subset(metadata,Time %in% c("W0","W4","W16"))
+data <- data[data$SampleID %in% rownames(table),]
+rownames(data)<- data$SampleID
+perm <- adonis2(table~Treatment*Time, data = data, method="bray",permutations = 999)
+
+##不同时间看组别之间的差异（W0：0.008，0.456； W4：0.0537，0.001；W16：0.2794，0.013）
+data <- subset(metadata,Time=="W4")
+tab <- table[rownames(data),] %>% na.omit()
+data <- data[rownames(tab),]
+adonis2(tab~Treatment, data = data, method="bray",permutations = 999)
+
+#画图
+plot  <- pcoa$vectors[,1:2]
+plot <- data.frame(plot)
+colnames(plot) <- c("PCoA1","PCoA2")
+plot <- merge(plot,data,by='row.names')
+
+eig <- as.numeric(pcoa$values[,1])
+p <- perm$aov.tab$`Pr(>F)`[1]
+R <- perm$aov.tab$R2[1]
+
+ggplot(plot, mapping=aes(PCoA1, PCoA2,color=Treatment))+
+    geom_point(size=3,alpha=0.7)+
+    theme_classic()+stat_ellipse(data=plot,geom="path",aes(colour=Treatment),alpha=0.5)+scale_color_manual(values = group_color)+
+    labs(x=paste("PCoA1(",format(100*eig[1]/sum(eig),digits=4),"%)",sep=""),y=paste("PCoA2(",format(100*eig[2]/sum(eig),digits=4),"%)",sep=""))+
+    theme(legend.position = "none",axis.text = element_text(color="black"),strip.background = element_blank())+facet_grid(~Time)+ggtitle("Fecal metabolome PCoA")
+
+```
+
+##LMM
+```{r pressure, echo=FALSE}
+#time*group
+W4 <- list()
+W16 <- list()
+
+for (i in 9:219){
+    fit.lmer <- lmer(fecal_metabolites_meta[,i]~ Treatment*Time+Age+Gender+(1 | Subject),data = fecal_metabolites_meta)
+    
+    W4[[i]] <- summary(fit.lmer)$coefficients["TreatmentGroup2:TimeW4", "Pr(>|t|)"]
+    W16[[i]] <- summary(fit.lmer)$coefficients["TreatmentGroup2:TimeW16", "Pr(>|t|)"]
+}
+
+fecal_metabolites_LMM <- data.frame(metabolites=colnames(fecal_metabolites_meta)[9:219],
+                       W4=unlist(W4),
+                       W16=unlist(W16),
+                       stringsAsFactors = F)
+```
+
+###group1
+```{r pressure, echo=FALSE}
+table <- fecal_metabolites_meta
+table[, 9:ncol(table)] <- lapply(table[, 9:ncol(table)], scale)
+table <- subset(table,Treatment=="Group1")
+
+W4 <- list()
+W16 <- list()
+W4_C <- list()
+W16_C <- list()
+
+for (i in 9:219){
+    fit.lmer <- lmer(table[,i]~ Time+Age+Gender+(1 | Subject),data = table)
+    
+    W4[[i]] <- summary(fit.lmer)$coefficients["TimeW4", "Pr(>|t|)"]
+    W16[[i]] <- summary(fit.lmer)$coefficients["TimeW16", "Pr(>|t|)"]
+    W4_C[[i]] <- summary(fit.lmer)$coefficients["TimeW4", "Estimate"]
+    W16_C[[i]] <- summary(fit.lmer)$coefficients["TimeW16", "Estimate"]
+}
+
+fecal_metabolites_LMM_g1 <- data.frame(metabolites=colnames(table)[9:219],
+                       W4=unlist(W4),
+                       W16=unlist(W16),
+                       stringsAsFactors = F)
+
+fecal_metabolites_LMM_g1_coef <- data.frame(metabolites=colnames(table)[9:219],
+                       W4=unlist(W4_C),
+                       W16=unlist(W16_C),
+                       stringsAsFactors = F)
+```
+
+###group2
+```{r pressure, echo=FALSE}
+table <- fecal_metabolites_meta
+table[, 9:ncol(table)] <- lapply(table[, 9:ncol(table)], scale)
+table <- subset(table,Treatment=="Group2")
+
+W4 <- list()
+W16 <- list()
+W4_C <- list()
+W16_C <- list()
+
+for (i in 9:219){
+    fit.lmer <- lmer(table[,i]~ Time+Age+Gender+(1 | Subject),data = table)
+    
+    W4[[i]] <- summary(fit.lmer)$coefficients["TimeW4", "Pr(>|t|)"]
+    W16[[i]] <- summary(fit.lmer)$coefficients["TimeW16", "Pr(>|t|)"]
+    W4_C[[i]] <- summary(fit.lmer)$coefficients["TimeW4", "Estimate"]
+    W16_C[[i]] <- summary(fit.lmer)$coefficients["TimeW16", "Estimate"]
+}
+
+fecal_metabolites_LMM_g2 <- data.frame(metabolites=colnames(table)[9:219],
+                       W4=unlist(W4),
+                       W16=unlist(W16),
+                       stringsAsFactors = F)
+
+fecal_metabolites_LMM_g2_coef <- data.frame(metabolites=colnames(table)[9:219],
+                       W4=unlist(W4_C),
+                       W16=unlist(W16_C),
+                       stringsAsFactors = F)
+```
+
+###fecal metabolites heatmap(FIG 5C)
+```{r pressure, echo=FALSE}
+fecal_scfa_name <- c("Propionic acid","Valeric acid","Isobutyric acid","Acetic acid","Isovaleric acid","Heptanoic acid","Butyric acid","Caproic acid","Isocaproic acid","Ethylmethylacetic acid")
+
+#P值矫正
+test <- fecal_metabolites_LMM[1:195,]
+test <- subset(test,!test$metabolites %in% fecal_scfa_name)
+for (i in 2:ncol(test)){
+  test[,i] <- p.adjust(test[,i],method="BH")
+}
+test <- subset(test, W4<0.25 | W16<0.25)
+
+test2 <- fecal_metabolites_LMM_g1[1:195,]
+test2 <- subset(test2,!test2$metabolites %in% fecal_scfa_name)
+for (i in 2:ncol(test2)){
+  test2[,i] <- p.adjust(test2[,i],method="BH")
+}
+test2 <- subset(test2, W4<0.05 | W16 < 0.05)
+ 
+fecal_metabolites_sig <- test$metabolites
+  
+test3 <- fecal_metabolites_LMM_g2[1:195,]
+test3 <- subset(test3,!test3$metabolites %in% fecal_scfa_name)
+for (i in 2:ncol(test3)){
+  test3[,i] <- p.adjust(test3[,i],method="BH")
+}
+
+#画图
+G1_coef <- melt(fecal_metabolites_LMM_g1_coef,variable.name = "Time",value.name = "Coef")
+G1_coef$Treatment <- "Group1"
+G2_coef <- melt(fecal_metabolites_LMM_g2_coef,variable.name = "Time",value.name = "Coef")
+G2_coef$Treatment <- "Group2"
+all_coef <- rbind(G1_coef,G2_coef)
+
+G1_pval <- melt(test2,variable.name = "Time",value.name = "qval")
+G1_pval$Treatment <- "Group1"
+G2_pval <- melt(test3,variable.name = "Time",value.name = "qval")
+G2_pval$Treatment <- "Group2"
+all_pval <- rbind(G1_pval,G2_pval)
+
+plot_data <- merge(all_coef,all_pval,by=c("metabolites","Treatment","Time"))
+plot_data <- merge(plot_data,fecal_metabolite_name_group,by.x="metabolites",by.y="Name")
+plot_data$stars <- cut(plot_data$qval, breaks=c(-Inf, 0.001, 0.01, 0.05, Inf), label=c("***", "**", "*", ""))
+plot_data$uni_name <- paste(plot_data$metabolites,plot_data$Group,plot_data$HMDB)
+
+plot_data <- subset(plot_data,plot_data$metabolites %in% fecal_metabolites_sig)
+
+plot_data <- plot_data %>% arrange(Group)
+plot_data$uni_name <- factor(plot_data$uni_name, levels = rev(unique(plot_data$uni_name)))
+
+ggplot(plot_data,aes(x=Time,y=uni_name,fill=Coef))+geom_tile()+facet_grid(~Treatment)+scale_fill_gradient2("Coefficients",low="#4d4e9e",mid="white",high="#f39f13")+labs(x="",y="")+geom_text(aes(label=stars), color="black",size=4)+theme_classic()+theme(axis.text = element_text(color="black",size=8),legend.title = element_text(size=8),legend.text = element_text(size=9,angle = 45, hjust = 1),strip.background = element_blank(),panel.grid = element_blank(),legend.position = "bottom")+guides(fill =  guide_colorbar(barwidth = 4, barheight = 0.5))+scale_y_discrete(position = "left")
+
+```
+
+#plasma metabolites import data
+```{r pressure, echo=FALSE}
+plasma_metabolites <- read.table("metabolites data/plasma metabolites data.txt",header=T,sep="\t",check.names = FALSE)
+plasma_metabolites_meta<- merge(metadata[,1:8],plasma_metabolites,by=c("Subject","Time"))
+plasma_metabolite_name_group <- read.table("metabolites data/plasma_metabolites_name_group.txt",header=T,sep="\t")
+```
+
+
+##plasma metabolites PCOA(FIG 5A)
+```{r pressure, echo=FALSE}
+table <- plasma_metabolites_meta
+rownames(table) <- table$SampleID
+table <- table[,8:ncol(table)]
+table <- na.omit(table)
+#table <- table[,fecal_metabolites_sig$Name]
+dis <- vegdist(table,method="bray",na.rm = TRUE)
+pcoa <- ape::pcoa(dis,correction ="none")
+
+#permanova
+data <- subset(metadata,Time %in% c("W0","W4","W16"))
+data <- data[rownames(table),]
+perm <- adonis2(table~Treatment*Time, data = data, method="bray",permutations = 999)
+
+#不同时间看组别之间的差异（W0：0.0019，0.964； W4：0.00816，0.424；W16：0.00365，0.827）
+data <- subset(metadata,Time=="W4")
+tab <- table[rownames(data),] %>% na.omit()
+data <- data[rownames(tab),]
+adonis2(tab~Treatment, data = data, method="bray",permutations = 999)
+
+#画图
+plot  <- pcoa$vectors[,1:2]
+plot <- data.frame(plot)
+colnames(plot) <- c("PCoA1","PCoA2")
+plot <- merge(plot,data,by='row.names')
+
+eig <- as.numeric(pcoa$values[,1])
+p <- perm$aov.tab$`Pr(>F)`[1]
+R <- perm$aov.tab$R2[1]
+
+ggplot(plot, mapping=aes(PCoA1, PCoA2,color=Treatment))+
+    geom_point(size=3,alpha=0.7)+
+    theme_classic()+stat_ellipse(data=plot,geom="path",aes(colour=Treatment),alpha=0.5)+scale_color_manual(values = group_color)+
+    labs(x=paste("PCoA1(",format(100*eig[1]/sum(eig),digits=4),"%)",sep=""),y=paste("PCoA2(",format(100*eig[2]/sum(eig),digits=4),"%)",sep=""))+theme(legend.position = "none",axis.text = element_text(color="black"),strip.background =    element_blank())+facet_grid(~Time)+ggtitle("Plasma metabolome PCoA")
+    #+annotate("text",x=30000,y=4500,parse=TRUE,label=paste('R:',format(R,digits=3)))+
+    #annotate("text",x=30000,y=5500,parse=TRUE,label=paste('P:',p))+theme(legend.position = "none",axis.text = element_text(color="black"))
+```
+
+##LMM
+```{r pressure, echo=FALSE}
+#time*group
+W4 <- list()
+W16 <- list()
+
+for (i in 9:219){
+    fit.lmer <- lmer(plasma_metabolites_meta[,i]~ Treatment*Time+Age+Gender+(1 | Subject),data = plasma_metabolites_meta)
+    
+    W4[[i]] <- summary(fit.lmer)$coefficients["TreatmentGroup2:TimeW4", "Pr(>|t|)"]
+    W16[[i]] <- summary(fit.lmer)$coefficients["TreatmentGroup2:TimeW16", "Pr(>|t|)"]
+}
+
+plasma_metabolites_LMM <- data.frame(metabolites=colnames(plasma_metabolites_meta)[9:219],
+                       W4=unlist(W4),
+                       W16=unlist(W16),
+                       stringsAsFactors = F)
+```
+
+###group1
+```{r pressure, echo=FALSE}
+table <- plasma_metabolites_meta
+table[, 9:ncol(table)] <- lapply(table[, 9:ncol(table)], scale)
+table <- subset(table,Treatment=="Group1")
+
+W4 <- list()
+W16 <- list()
+W4_C <- list()
+W16_C <- list()
+
+for (i in 9:219){
+    fit.lmer <- lmer(table[,i]~ Time+Age+Gender+(1 | Subject),data = table)
+    
+    W4[[i]] <- summary(fit.lmer)$coefficients["TimeW4", "Pr(>|t|)"]
+    W16[[i]] <- summary(fit.lmer)$coefficients["TimeW16", "Pr(>|t|)"]
+    W4_C[[i]] <- summary(fit.lmer)$coefficients["TimeW4", "Estimate"]
+    W16_C[[i]] <- summary(fit.lmer)$coefficients["TimeW16", "Estimate"]
+}
+
+plasma_metabolites_LMM_g1 <- data.frame(metabolites=colnames(table)[9:219],
+                       W4=unlist(W4),
+                       W16=unlist(W16),
+                       stringsAsFactors = F)
+
+plasma_metabolites_LMM_g2_coef <- data.frame(metabolites=colnames(table)[9:219],
+                       W4=unlist(W4_C),
+                       W16=unlist(W16_C),
+                       stringsAsFactors = F)
+```
+
+###group2
+```{r pressure, echo=FALSE}
+table <- plasma_metabolites_meta
+table[, 9:ncol(table)] <- lapply(table[, 9:ncol(table)], scale)
+table <- subset(table,Treatment=="Group2")
+
+W4 <- list()
+W16 <- list()
+W4_C <- list()
+W16_C <- list()
+
+for (i in 9:219){
+    fit.lmer <- lmer(table[,i]~ Time+Age+Gender+(1 | Subject),data = table)
+    
+    W4[[i]] <- summary(fit.lmer)$coefficients["TimeW4", "Pr(>|t|)"]
+    W16[[i]] <- summary(fit.lmer)$coefficients["TimeW16", "Pr(>|t|)"]
+    W4_C[[i]] <- summary(fit.lmer)$coefficients["TimeW4", "Estimate"]
+    W16_C[[i]] <- summary(fit.lmer)$coefficients["TimeW16", "Estimate"]
+}
+
+plasma_metabolites_LMM_g2 <- data.frame(metabolites=colnames(table)[9:219],
+                       W4=unlist(W4),
+                       W16=unlist(W16),
+                       stringsAsFactors = F)
+
+plasma_metabolites_LMM_g2_coef <- data.frame(metabolites=colnames(table)[9:219],
+                       W4=unlist(W4_C),
+                       W16=unlist(W16_C),
+                       stringsAsFactors = F)
+```
+
+###plasma sig metabolites heatmap(FIG 5B)
+```{r pressure, echo=FALSE}
+plasma_scfa_name <- c("Acetic acid","Butyric acid","Caproic acid","Ethylmethylacetic acid","Isocaproic acid","Isovaleric acid","Propionic acid","Valeric acid")
+#P值矫正
+test <- plasma_metabolites_LMM[1:193,]
+test <- subset(test,!test$metabolites %in% plasma_scfa_name)
+for (i in 2:ncol(test)){
+  test[,i] <- p.adjust(test[,i],method="BH")
+}
+test <- subset(test, W4<0.25 | W16<0.25)
+
+plasma_metabolite_sig <- test$metabolites
+
+test2 <- plasma_metabolites_LMM_g1[1:193,]
+test2 <- subset(test2,!test2$metabolites %in% plasma_scfa_name)
+for (i in 2:ncol(test2)){
+  test2[,i] <- p.adjust(test2[,i],method="BH")
+}
+
+test3 <- plasma_metabolites_LMM_g2[1:193,]
+test3 <- subset(test3,!test3$metabolites %in% plasma_scfa_name)
+for (i in 2:ncol(test3)){
+  test3[,i] <- p.adjust(test3[,i],method="BH")
+}
+
+#画图
+G1_coef <- melt(plasma_metabolites_LMM_g1_coef,variable.name = "Time",value.name = "Coef")
+G1_coef$Treatment <- "Group1"
+G2_coef <- melt(plasma_metabolites_LMM_g2_coef,variable.name = "Time",value.name = "Coef")
+G2_coef$Treatment <- "Group2"
+all_coef <- rbind(G1_coef,G2_coef)
+
+G1_pval <- melt(test2,variable.name = "Time",value.name = "qval")
+G1_pval$Treatment <- "Group1"
+G2_pval <- melt(test3,variable.name = "Time",value.name = "qval")
+G2_pval$Treatment <- "Group2"
+all_pval <- rbind(G1_pval,G2_pval)
+
+plot_data <- merge(all_coef,all_pval,by=c("metabolites","Treatment","Time"))
+plot_data <- merge(plot_data,plasma_metabolite_name_group,by.x="metabolites",by.y="Name")
+plot_data$stars <- cut(plot_data$qval, breaks=c(-Inf, 0.001, 0.01, 0.05, Inf), label=c("***", "**", "*", ""))
+plot_data$uni_name <- paste(plot_data$metabolites,plot_data$Group2,plot_data$HMDB)
+
+plot_data <- subset(plot_data,plot_data$metabolites %in% test$metabolites)
+
+plot_data <- plot_data %>% arrange(Group2)
+plot_data$uni_name <- factor(plot_data$uni_name, levels = rev(unique(plot_data$uni_name)))
+
+ggplot(plot_data,aes(x=Time,y=uni_name,fill=Coef))+geom_tile()+facet_grid(~Treatment)+scale_fill_gradient2("Coefficients",low="#4d4e9e",mid="white",high="#f39f13")+labs(x="",y="")+geom_text(aes(label=stars), color="black",size=4)+theme_classic()+theme(axis.text = element_text(color="black",size=8),legend.title = element_text(size=8),legend.text = element_text(size=9,angle = 45, hjust = 1),strip.background = element_blank(),panel.grid = element_blank(),legend.position = "bottom")+guides(fill =  guide_colorbar(barwidth = 4, barheight = 0.5))+scale_y_discrete(position = "left")
+
+```
+
+#SCFA related
+##fecal SCFA
+```{r pressure, echo=FALSE}
+fecal_scfa_name <- c("Propionic acid","Valeric acid","Isobutyric acid","Acetic acid","Isovaleric acid","Heptanoic acid","Butyric acid","Caproic acid","Isocaproic acid","Ethylmethylacetic acid")
+
+fecal_scfa_optimized_lmm <- subset(fecal_metabolites_optimised_LMM,fecal_metabolites_optimised_LMM$metabolites %in% fecal_scfa_name)
+for (i in 2:ncol(fecal_scfa_optimized_lmm)){
+  fecal_scfa_optimized_lmm[,i] <- p.adjust(fecal_scfa_optimized_lmm[,i],method="BH")
+}
+
+fecal_scfa_optimized_lmm_g1 <- subset(fecal_metabolites_optimised_LMM_g1,fecal_metabolites_optimised_LMM_g1$mettabolites %in% fecal_scfa_name)
+for (i in 2:ncol(fecal_scfa_optimized_lmm_g1)){
+  fecal_scfa_optimized_lmm_g1[,i] <- p.adjust(fecal_scfa_optimized_lmm_g1[,i],method="BH")
+}
+
+fecal_scfa_optimized_lmm_g2 <- subset(fecal_metabolites_optimised_LMM_g2,fecal_metabolites_optimised_LMM_g2$mettabolites %in% fecal_scfa_name)
+for (i in 2:ncol(fecal_scfa_optimized_lmm_g2)){
+  fecal_scfa_optimized_lmm_g2[,i] <- p.adjust(fecal_scfa_optimized_lmm_g2[,i],method="BH")
+}
+```
+
+##plasma SCFA
+```{r pressure, echo=FALSE}
+plasma_scfa_name <- c("Acetic acid","Butyric acid","Caproic acid","Ethylmethylacetic acid","Isocaproic acid","Isovaleric acid","Propionic acid","Valeric acid")
+
+plasma_scfa_optimized_lmm <- subset(plasma_metabolites_optimised_LMM,plasma_metabolites_optimised_LMM$metabolites %in% plasma_scfa_name)
+
+for (i in 2:ncol(plasma_scfa_optimized_lmm)){
+  plasma_scfa_optimized_lmm[,i] <- p.adjust(plasma_scfa_optimized_lmm[,i],method="BH")
+}
+
+plasma_scfa_optimized_lmm_g1 <- subset(plasma_metabolites_optimised_LMM_g1,plasma_metabolites_optimised_LMM_g1$metabolites %in% plasma_scfa_name)
+for (i in 2:ncol(plasma_scfa_optimized_lmm_g1)){
+  plasma_scfa_optimized_lmm_g1[,i] <- p.adjust(plasma_scfa_optimized_lmm_g1[,i],method="BH")
+}
+
+plasma_scfa_optimized_lmm_g2 <- subset(plasma_metabolites_optimised_LMM_g2,plasma_metabolites_optimised_LMM_g2$metabolites %in% plasma_scfa_name)
+for (i in 2:ncol(plasma_scfa_optimized_lmm_g2)){
+  plasma_scfa_optimized_lmm_g2[,i] <- p.adjust(plasma_scfa_optimized_lmm_g2[,i],method="BH")
+}
+```
+
+##associations between fecal SCFA and blood biomarker
+```{r pressure, echo=FALSE}
+table <- fecal_metabolites_meta[,c(colnames(fecal_metabolites_meta)[1:8],fecal_scfa_name)]
+table <- merge(table,metadata[,c(2,4,23:32)],by=c("Subject","Time"))
+table[, 9:ncol(table)] <- lapply(table[, 9:ncol(table)], scale)
+
+#group1
+tab <- subset(table,Treatment=="Group1")
+
+fecal_scfa_serum_corr_g1 <- data.frame(scfa = character(), serum=character(),coef=numeric(),pval = numeric(),low=numeric(),high=numeric(), stringsAsFactors=FALSE)
+
+for (i in colnames(tab)[9:18]){
+    for (j in colnames(tab)[19:28]){
+    
+    fit.lmer <- lmer(tab[,j] ~ tab[,i]+Age+Gender+(1 | Subject), data = tab)
+    
+    fecal_scfa_serum_corr_g1 <- rbind(fecal_scfa_serum_corr_g1, data.frame(scfa = i,serum=j,coef=summary(fit.lmer)$coefficients[2,1],pval = summary(fit.lmer)$coefficients[2,5],low=confint(fit.lmer)[4,1],high=confint(fit.lmer)[4,2], stringsAsFactors = FALSE))
+    }
+}
+fecal_scfa_serum_corr_g1$group <- "Group1"
+fecal_scfa_serum_corr_g1 <- fecal_scfa_serum_corr_g1 %>%
+  group_by(scfa) %>%
+  mutate(qval = p.adjust(pval, method = "BH"))
+
+#group2
+tab <- subset(table,Treatment=="Group2")
+
+fecal_scfa_serum_corr_g2 <- data.frame(scfa = character(), serum=character(),coef=numeric(),pval = numeric(),low=numeric(),high=numeric(), stringsAsFactors=FALSE)
+
+for (i in colnames(tab)[9:18]){
+    for (j in colnames(tab)[19:28]){
+    
+    fit.lmer <- lmer(tab[,j] ~ tab[,i]+Age+Gender+(1 | Subject), data = tab)
+    
+    fecal_scfa_serum_corr_g2 <- rbind(fecal_scfa_serum_corr_g2, data.frame(scfa = i,serum=j,coef=summary(fit.lmer)$coefficients[2,1],pval = summary(fit.lmer)$coefficients[2,5],low=confint(fit.lmer)[4,1],high=confint(fit.lmer)[4,2], stringsAsFactors = FALSE))
+    }
+}
+fecal_scfa_serum_corr_g2$group <- "Group2"
+
+fecal_scfa_serum_corr_g2 <- fecal_scfa_serum_corr_g2 %>%
+  group_by(scfa) %>%
+  mutate(qval = p.adjust(pval, method = "BH"))
+```
+
+##associations between plasma SCFA and blood biomarker
+```{r pressure, echo=FALSE}
+table <- plasma_metabolites_meta[,c(colnames(plasma_metabolites_meta)[1:8],plasma_scfa_name)]
+table <- merge(table,metadata[,c(2,4,23:32)],by=c("Subject","Time"))
+table[, 9:ncol(table)] <- lapply(table[, 9:ncol(table)], scale)
+
+#group1
+tab <- subset(table,Treatment=="Group1")
+
+plasma_scfa_serum_corr_g1 <- data.frame(scfa = character(), serum=character(),coef=numeric(),pval = numeric(),low=numeric(),high=numeric(), stringsAsFactors=FALSE)
+
+for (i in colnames(tab)[9:16]){
+    for (j in colnames(tab)[17:26]){
+    
+    fit.lmer <- lmer(tab[,j] ~ tab[,i]+Age+Gender+(1 | Subject), data = tab)
+    
+    plasma_scfa_serum_corr_g1 <- rbind(plasma_scfa_serum_corr_g1, data.frame(scfa = i,serum=j,coef=summary(fit.lmer)$coefficients[2,1],pval = summary(fit.lmer)$coefficients[2,5],low=confint(fit.lmer)[4,1],high=confint(fit.lmer)[4,2], stringsAsFactors = FALSE))
+    }
+}
+plasma_scfa_serum_corr_g1$group <- "Group1"
+plasma_scfa_serum_corr_g1 <- plasma_scfa_serum_corr_g1 %>%
+  group_by(scfa) %>%
+  mutate(qval = p.adjust(pval, method = "BH"))
+
+
+#group2
+tab <- subset(table,Treatment=="Group2")
+
+plasma_scfa_serum_corr_g2 <- data.frame(scfa = character(), serum=character(),coef=numeric(),pval = numeric(),low=numeric(),high=numeric(), stringsAsFactors=FALSE)
+
+for (i in colnames(tab)[9:16]){
+    for (j in colnames(tab)[17:26]){
+    
+    fit.lmer <- lmer(tab[,j] ~ tab[,i]+Age+Gender+(1 | Subject), data = tab)
+    
+    plasma_scfa_serum_corr_g2 <- rbind(plasma_scfa_serum_corr_g2, data.frame(scfa = i,serum=j,coef=summary(fit.lmer)$coefficients[2,1],pval = summary(fit.lmer)$coefficients[2,5],low=confint(fit.lmer)[4,1],high=confint(fit.lmer)[4,2], stringsAsFactors = FALSE))
+    }
+}
+plasma_scfa_serum_corr_g2$group <- "Group2"
+plasma_scfa_serum_corr_g2 <- plasma_scfa_serum_corr_g2 %>%
+  group_by(scfa) %>%
+  mutate(qval = p.adjust(pval, method = "BH"))
+
+```
+
+###figure4B
+```{r pressure, echo=FALSE}
+plot_data <- rbind(fecal_scfa_serum_corr_g1,fecal_scfa_serum_corr_g2)
+plot_data$site <- "Fecal"
+plot_data2 <- rbind(plasma_scfa_serum_corr_g1,plasma_scfa_serum_corr_g2)
+plot_data2$site <- "Blood"
+
+figure4e_data <- rbind(plot_data,plot_data2)
+
+variable <- c("TC_HDL_Ratio","TC","HDL","LDLm","TG","FG","HBA1C","Insulin","HOMA_IR")
+test <- figure4e_data[figure4e_data$serum %in% variable,]
+
+test$star <- cut(test$qval,breaks=c(-Inf, 0.001, 0.01, 0.05, Inf), label=c("***", "**", "*", ""))
+
+test$serum <- factor(test$serum,levels = c("TC_HDL_Ratio","TC","HDL","LDLm","TG","FG","HBA1C","Insulin","HOMA_IR"))
+test$scfa <- factor(test$scfa,levels = c("Acetic acid","Propionic acid","Butyric acid","Valeric acid","Isovaleric acid","Caproic acid","Isocaproic acid","Ethylmethylacetic acid","Isobutyric acid","Heptanoic acid"))
+test$site <- factor(test$site,levels = c("Fecal","Blood"))
+
+ggplot(test,aes(x=scfa,y=serum,fill=coef))+geom_tile(color="white")+scale_fill_gradient2("Coefficients",low="#2F7d77",mid="white",high="#9D6622")+labs(x="",y="")+theme_classic()+theme(axis.text = element_text(color="black",size=8),axis.text.x = element_text(angle=45,hjust = 1),legend.title = element_text(size=8),strip.background = element_blank(),panel.grid = element_blank(),legend.position = "right",axis.line = element_blank(),axis.ticks.x = element_blank())+guides(fill =  guide_colorbar(barwidth = 0.5, barheight = 4))+scale_y_discrete(position = "left")+geom_text(aes(label=star), color="black",size=4)+facet_grid(group~site)
+
+```
+
+###FIGS8 Scatter plots of gut SCFAs correlations with blood glucose and lipids
+```{r pressure, echo=FALSE}
+#blood scfa
+table <- plasma_metabolites_meta[,c(colnames(plasma_metabolites_meta)[1:8],plasma_scfa_name)]
+table <- merge(table,metadata[,c(2,4,23:32)],by=c("Subject","Time"))
+
+for (i in colnames(table)[17:26]){
+    p <- ggplot(table,aes(x=`Acetic acid`,y=table[,i]))+geom_point(shape=16,aes(color=Treatment),alpha=0.6,size=2)+geom_smooth(color="#CC9933",fill="#cc9933",method=lm)+scale_color_manual(values=c("#CC6666","#9999CC"))+theme_classic()+labs(y=i)+theme(axis.text = element_text(color="black",size=14),title = element_text(size=12),legend.position="none",strip.background = element_blank())+facet_grid(~Treatment,scales = "free")
+    base::print(p)
+    ggsave(p, file= paste("Acetic Acid_",i, ".pdf"),path="revise_figure/plasa_scfa_marker_scatter_plot/",width=5, height=4)
+}
+
+#fecal scfa
+table <- fecal_metabolites_meta[,c(colnames(fecal_metabolites_meta)[1:8],fecal_scfa_name)]
+table <- merge(table,metadata[,c(2,4,23:32)],by=c("Subject","Time"))
+
+for (i in colnames(table)[19:28]){
+  for (j in colnames(table)[9:18]){
+    p <- ggplot(table,aes(x= table[,j],y=table[,i]))+geom_point(shape=16,aes(color=Treatment),alpha=0.6,size=2)+geom_smooth(color="#CC9933",fill="#cc9933",method=lm)+scale_color_manual(values=c("#CC6666","#9999CC"))+theme_classic()+labs(x=j,y=i)+theme(axis.text = element_text(color="black",size=14),title = element_text(size=12),legend.position="none",strip.background = element_blank())+facet_grid(~Treatment,scales = "free")
+    base::print(p)
+    ggsave(p, file= paste("Acetic Acid_",i, ".pdf"),path="revise_figure/plasa_scfa_marker_scatter_plot/",width=5, height=4)
+  }
+}
+
+```
+
+

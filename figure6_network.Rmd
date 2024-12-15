@@ -1,0 +1,514 @@
+---
+title: "figure6_network"
+author: "wuxr"
+date: "2024-12-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#network plot(FIG 6A-B)
+##fecal metabolites
+```{r pressure, echo=FALSE}
+taxonomy <- c(sig_species,sig_genus)
+fecal_meta <- fecal_metabolites_sig
+blood_marker <- colnames(metadata)[c(23:27,29:37)]
+
+#合并表格
+species <- as.data.frame(t(species_otu_table))
+
+genus <- as.data.frame(t(genus_otu_table))
+
+meta.tab <- merge(species,genus,by='row.names')
+meta.tab <- merge(metadata[c(1:8,23:37)],meta.tab,by.x='SampleID',by.y="Row.names",all=T)
+meta.tab <- merge(meta.tab,fecal_metabolites_meta[,c(1:2,9:219)],by=c("Subject","Time"),all=T)
+meta.tab[,9:ncol(meta.tab)] <- lapply(meta.tab[,9:ncol(meta.tab)],scale)
+
+```
+
+###meta与spe
+```{r pressure, echo=FALSE}
+fecal_meta_spe_lmm <- data.frame(metabolite = character(), spe=character(),pval = numeric(),stringsAsFactors=FALSE)
+
+for (i in fecal_meta){
+  for (j in taxonomy){
+    fit.lmer <- lmer(as.formula(paste0("`",i,"`","~" ,j,"* Treatment + Age+Gender+(1| Subject)",sep="")),data = meta.tab)
+   fecal_meta_spe_lmm <- rbind(fecal_meta_spe_lmm, data.frame(metabolite = i,spe=j, pval =summary(fit.lmer)$coefficients[6,5], stringsAsFactors = FALSE))
+    
+  }
+}
+
+test <- dcast(fecal_meta_spe_lmm,metabolite~spe,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "spe",value.name = "inter_qval")
+fecal_meta_spe_lmm <- merge(fecal_meta_spe_lmm,test,by=c("metabolite","spe"))
+
+#Group1
+G1_fecal_meta_spe_lmm <- data.frame(metabolite = character(), spe=character(),pval = numeric(),coef=numeric(),stringsAsFactors=FALSE)
+
+table <- subset(meta.tab,Treatment=="Group1")
+
+for (i in fecal_meta){
+  for (j in taxonomy){
+    fit.lmer <-  lmer(as.formula(paste0("`",i,"`","~" ,j,"+Age+Gender+ (1| Subject)",sep="")),data = table)
+    G1_fecal_meta_spe_lmm <- rbind(G1_fecal_meta_spe_lmm, data.frame(metabolite = i,spe=j, pval =summary(fit.lmer)$coefficients[2,5], coef=summary(fit.lmer)$coefficients[2,1],stringsAsFactors = FALSE))
+  }
+}
+
+G1_fecal_meta_spe_lmm$Treatment <- "Group1"
+test <- dcast(G1_fecal_meta_spe_lmm,metabolite~spe,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "spe",value.name = "qval")
+G1_fecal_meta_spe_lmm <- merge(G1_fecal_meta_spe_lmm,test,by=c("metabolite","spe"))
+
+
+#Group2
+G2_fecal_meta_spe_lmm <- data.frame(metabolite = character(), spe=character(),pval = numeric(),coef=numeric(),stringsAsFactors=FALSE)
+
+table <- subset(meta.tab,Treatment=="Group2")
+
+for (i in fecal_meta){
+  for (j in taxonomy){
+    fit.lmer <-  lmer(as.formula(paste0("`",i,"`","~" ,j,"+Age+Gender+ (1| Subject)",sep="")),data = table)
+    G2_fecal_meta_spe_lmm <- rbind(G2_fecal_meta_spe_lmm, data.frame(metabolite = i,spe=j, pval =summary(fit.lmer)$coefficients[2,5], coef=summary(fit.lmer)$coefficients[2,1],stringsAsFactors = FALSE))
+  }
+}
+
+G2_fecal_meta_spe_lmm$Treatment <- "Group1"
+test <- dcast(G2_fecal_meta_spe_lmm,metabolite~spe,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "spe",value.name = "qval")
+G2_fecal_meta_spe_lmm <- merge(G2_fecal_meta_spe_lmm,test,by=c("metabolite","spe"))
+```
+
+###meta与merker
+```{r pressure, echo=FALSE}
+fecal_meta_serum_lmm <- data.frame(metabolite=character(),serum = character(),pval = numeric(),stringsAsFactors=FALSE)
+
+for (i in blood_marker){
+  for (j in fecal_meta){
+    fit.lmer <- lmer(as.formula(paste0(i,"~" ,"`",j,"`","* Treatment + Age + Gender + (1|Subject)",sep="")),data = meta.tab)
+    fecal_meta_serum_lmm <- rbind(fecal_meta_serum_lmm, data.frame(metabolite = j,serum=i, pval =summary(fit.lmer)$coefficients[6,5], stringsAsFactors = FALSE))
+  }
+}
+
+test <- dcast(fecal_meta_serum_lmm,metabolite~serum,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "serum",value.name = "inter_qval")
+fecal_meta_serum_lmm <- merge(fecal_meta_serum_lmm,test,by=c("metabolite","serum"))
+
+#Group1
+G1_fecal_meta_serum_lmm <- data.frame(metabolite=character(),serum = character(),pval = numeric(),coef=numeric(),stringsAsFactors=FALSE)
+
+table <- subset(meta.tab,Treatment=="Group1")
+
+for (i in blood_marker){
+  for (j in fecal_meta){
+    fit.lmer <-  lmer(as.formula(paste0(i,"~" ,"`",j,"`","+Age+Gender + (1| Subject)",sep="")),data = table)
+    G1_fecal_meta_serum_lmm <- rbind(G1_fecal_meta_serum_lmm, data.frame(metabolite = j,serum=i, pval =summary(fit.lmer)$coefficients[2,5],coef=summary(fit.lmer)$coefficients[2,1], stringsAsFactors = FALSE))
+  }
+}
+G1_fecal_meta_serum_lmm$Treatment <- "Group1"
+
+test <- dcast(G1_fecal_meta_serum_lmm,metabolite~serum,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "serum",value.name = "qval")
+G1_fecal_meta_serum_lmm <- merge(G1_fecal_meta_serum_lmm,test,by=c("metabolite","serum"))
+
+#Group2
+G2_fecal_meta_serum_lmm <- data.frame(metabolite=character(),serum = character(),pval = numeric(),coef=numeric(),stringsAsFactors=FALSE)
+
+table <- subset(meta.tab,Treatment=="Group2")
+
+for (i in blood_marker){
+  for (j in fecal_meta){
+    fit.lmer <-  lmer(as.formula(paste0(i,"~" ,"`",j,"`","+Age+Gender + (1| Subject)",sep="")),data = table)
+    G2_fecal_meta_serum_lmm <- rbind(G2_fecal_meta_serum_lmm, data.frame(metabolite = j,serum=i, pval =summary(fit.lmer)$coefficients[2,5],coef=summary(fit.lmer)$coefficients[2,1], stringsAsFactors = FALSE))
+  }
+}
+G2_fecal_meta_serum_lmm$Treatment <- "Group2"
+
+test <- dcast(G2_fecal_meta_serum_lmm,metabolite~serum,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "serum",value.name = "qval")
+G2_fecal_meta_serum_lmm <- merge(G2_fecal_meta_serum_lmm,test,by=c("metabolite","serum"))
+```
+
+###spe与marker
+```{r pressure, echo=FALSE}
+serum_spe_lmm <- data.frame(serum=character(),spe=character(),pval=numeric(), stringsAsFactors=FALSE)
+
+for (i in blood_marker){
+  for (j in taxonomy){
+    fit.lmer <- lmer(as.formula(paste0(i,"~" ,j,"* Treatment +Age+Gender+(1| Subject)",sep="")),data = meta.tab)
+    serum_spe_lmm <- rbind(serum_spe_lmm, data.frame(serum=i,spe=j, pval = summary(fit.lmer)$coefficients[6,5], stringsAsFactors = FALSE))
+  }
+}
+
+test <- dcast(serum_spe_lmm,spe~serum,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "serum",value.name = "inter_qval")
+serum_spe_lmm <- merge(serum_spe_lmm,test,by=c("spe","serum"))
+
+#Group1
+G1_serum_spe_lmm <- data.frame(serum = character(), spe=character(),pval = numeric(),coef=numeric(),stringsAsFactors=FALSE)
+
+table <- subset(meta.tab,Treatment=="Group1")
+
+for (i in blood_marker){
+  for (j in taxonomy){
+    fit.lmer <-  lmer(as.formula(paste(i,"~" ,j,"+ Age+Gender+(1| Subject)",sep="")),data = table)
+    G1_serum_spe_lmm <- rbind(G1_serum_spe_lmm, data.frame(serum = i,spe=j, pval =summary(fit.lmer)$coefficients[2,5],coef=summary(fit.lmer)$coefficients[2,1], stringsAsFactors = FALSE))
+  }
+}
+G1_serum_spe_lmm$Treatment <- "Group1"
+
+test <- dcast(G1_serum_spe_lmm,spe~serum,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "serum",value.name = "qval")
+G1_serum_spe_lmm <- merge(G1_serum_spe_lmm,test,by=c("spe","serum"))
+
+#Group2
+G2_serum_spe_lmm <- data.frame(serum = character(), spe=character(),pval = numeric(),coef=numeric(),stringsAsFactors=FALSE)
+
+table <- subset(meta.tab,Treatment=="Group2")
+
+for (i in blood_marker){
+  for (j in taxonomy){
+    fit.lmer <-  lmer(as.formula(paste(i,"~" ,j,"+ Age+Gender+(1| Subject)",sep="")),data = table)
+    G2_serum_spe_lmm <- rbind(G2_serum_spe_lmm, data.frame(serum = i,spe=j, pval =summary(fit.lmer)$coefficients[2,5],coef=summary(fit.lmer)$coefficients[2,1], stringsAsFactors = FALSE))
+  }
+}
+G2_serum_spe_lmm$Treatment <- "Group2"
+
+test <- dcast(G2_serum_spe_lmm,spe~serum,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "serum",value.name = "qval")
+G2_serum_spe_lmm <- merge(G2_serum_spe_lmm,test,by=c("spe","serum"))
+```
+
+####挑选显著性画网络图
+```{r pressure, echo=FALSE}
+node.type <- data.frame(node=taxonomy,type=rep("species"))
+node.type <- rbind(node.type,data.frame(node=fecal_meta,type=rep("fecal_meta")))
+node.type <- rbind(node.type,data.frame(node=blood_marker,type=rep("clinical")))
+
+##group1
+#meta_spe
+tab1 <- merge(G1_fecal_meta_spe_lmm,fecal_meta_spe_lmm[,c(1,2,4)],by=c("metabolite","spe"))
+tab1 <- tab1[tab1$inter_qval < 0.25,]
+tab1 <- tab1[tab1$qval < 0.05,]
+colnames(tab1)[1:2] <- c("node1","node2")
+
+#meta_serum
+tab2 <- merge(G1_fecal_meta_serum_lmm,fecal_meta_serum_lmm[,c(1,2,4)],by=c("metabolite","serum"))
+tab2 <- tab2[tab2$inter_qval < 0.25,]
+tab2<- tab2[tab2$qval < 0.05,]
+colnames(tab2)[1:2] <- c("node1","node2")
+
+#spe_serum
+tab3 <- merge(G1_serum_spe_lmm,serum_spe_lmm[,c(1,2,4)],by=c("spe","serum"))
+tab3 <- tab3[tab3$inter_qval < 0.25,]
+tab3<- tab3[tab3$qval < 0.05,]
+colnames(tab3)[1:2] <- c("node1","node2")
+
+#网络图数据汇总
+g1_network_tab <- rbind(tab1,tab2,tab3)
+
+g1_network_tab <- g1_network_tab %>%
+  #filter(abs(coef) >= 0.5, p <= 0.05, node1 != node2) %>%
+  mutate(linetype = ifelse(coef > 0,"positive","negative"), linesize = abs(coef))
+
+g <- graph_from_data_frame(g1_network_tab, vertices = node.type, directed = FALSE )
+vcount(g) # 节点数目：99
+ecount(g) # 链接数:268
+
+####简单图
+is.simple(g) # 非简单图，链接数会偏高，所以需要转换为简单图。
+E(g)$weight <- 1
+g <- igraph::simplify(g,
+                      remove.multiple = TRUE,
+                      remove.loops = TRUE,
+                      edge.attr.comb = "first")
+g <- delete.vertices(g,which(degree(g) == 0)) #删除孤立点
+E(g)$weight <- 1
+is_weighted(g)
+vcount(g) # 节点数目：81
+ecount(g) # 链接数:268
+V(g)$degree <- degree(g)#计算节点
+
+createNetworkFromIgraph(g,"fecal_meta_g1")
+
+
+##group2
+#meta_spe
+tab1 <- merge(G2_fecal_meta_spe_lmm,fecal_meta_spe_lmm[,c(1,2,4)],by=c("metabolite","spe"))
+tab1 <- tab1[tab1$inter_qval < 0.25,]
+tab1 <- tab1[tab1$qval < 0.05,]
+colnames(tab1)[1:2] <- c("node1","node2")
+
+#meta_serum
+tab2 <- merge(G2_fecal_meta_serum_lmm,fecal_meta_serum_lmm[,c(1,2,4)],by=c("metabolite","serum"))
+tab2 <- tab2[tab2$inter_qval < 0.25,]
+tab2<- tab2[tab2$qval < 0.05,]
+colnames(tab2)[1:2] <- c("node1","node2")
+
+#spe_serum
+tab3 <- merge(G2_serum_spe_lmm,serum_spe_lmm[,c(1,2,4)],by=c("spe","serum"))
+tab3 <- tab3[tab3$inter_qval < 0.25,]
+tab3<- tab3[tab3$qval < 0.05,]
+colnames(tab3)[1:2] <- c("node1","node2")
+
+#网络图数据汇总
+g2_network_tab <- rbind(tab1,tab2,tab3)
+
+g2_network_tab <-g2_network_tab %>%
+  #filter(abs(coef) >= 0.5, p <= 0.05, node1 != node2) %>%
+  mutate(linetype = ifelse(coef > 0,"positive","negative"), linesize = abs(coef))
+
+g <- graph_from_data_frame(g2_network_tab, vertices = node.type, directed = FALSE )
+vcount(g) # 节点数目：99
+ecount(g) # 链接数:31
+
+####简单图
+is.simple(g) # 非简单图，链接数会偏高，所以需要转换为简单图。
+E(g)$weight <- 1
+g <- igraph::simplify(g,
+                      remove.multiple = TRUE,
+                      remove.loops = TRUE,
+                      edge.attr.comb = "first")
+g <- delete.vertices(g,which(degree(g) == 0)) #删除孤立点
+E(g)$weight <- 1
+is.weighted(g)
+vcount(g) # 节点数目：33
+ecount(g) # 链接数:31
+V(g)$degree <- degree(g)#计算节点
+
+createNetworkFromIgraph(g,"fecal_meta_g2")
+```
+
+##血液metabolites
+```{r pressure, echo=FALSE}
+plasma_meta <- plasma_metabolite_sig
+
+#合并表格
+species <- as.data.frame(t(species_otu_table))
+genus <- as.data.frame(t(genus_otu_table))
+
+meta.tab <- merge(species,genus,by='row.names')
+meta.tab <- merge(metadata[c(1:8,23:37)],meta.tab,by.x='SampleID',by.y="Row.names",all=T)
+meta.tab <- merge(meta.tab,plasma_metabolites_meta[,c(1:2,9:219)],by=c("Subject","Time"),all=T)
+meta.tab[,9:ncol(meta.tab)] <- lapply(meta.tab[,9:ncol(meta.tab)],scale)
+```
+
+###meta与spe
+```{r pressure, echo=FALSE}
+plasma_meta_spe_lmm <- data.frame(metabolite = character(), spe=character(),pval = numeric(),stringsAsFactors=FALSE)
+
+for (i in plasma_meta){
+  for (j in taxonomy){
+    fit.lmer <- lmer(as.formula(paste0("`",i,"`","~" ,j,"* Treatment + Age+Gender+(1| Subject)",sep="")),data = meta.tab)
+   plasma_meta_spe_lmm <- rbind(plasma_meta_spe_lmm, data.frame(metabolite = i,spe=j, pval =summary(fit.lmer)$coefficients[6,5], stringsAsFactors = FALSE))
+    
+  }
+}
+
+test <- dcast(plasma_meta_spe_lmm,metabolite~spe,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "spe",value.name = "inter_qval")
+plasma_meta_spe_lmm <- merge(plasma_meta_spe_lmm,test,by=c("metabolite","spe"))
+
+#Group1
+G1_plasma_meta_spe_lmm <- data.frame(metabolite = character(), spe=character(),pval = numeric(),coef=numeric(),stringsAsFactors=FALSE)
+
+table <- subset(meta.tab,Treatment=="Group1")
+
+for (i in plasma_meta){
+  for (j in taxonomy){
+    fit.lmer <-  lmer(as.formula(paste0("`",i,"`","~" ,j,"+Age+Gender+ (1| Subject)",sep="")),data = table)
+    G1_plasma_meta_spe_lmm <- rbind(G1_plasma_meta_spe_lmm, data.frame(metabolite = i,spe=j, pval =summary(fit.lmer)$coefficients[2,5], coef=summary(fit.lmer)$coefficients[2,1],stringsAsFactors = FALSE))
+  }
+}
+
+G1_plasma_meta_spe_lmm$Treatment <- "Group1"
+test <- dcast(G1_plasma_meta_spe_lmm,metabolite~spe,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "spe",value.name = "qval")
+G1_plasma_meta_spe_lmm <- merge(G1_plasma_meta_spe_lmm,test,by=c("metabolite","spe"))
+
+
+#Group2
+G2_plasma_meta_spe_lmm <- data.frame(metabolite = character(), spe=character(),pval = numeric(),coef=numeric(),stringsAsFactors=FALSE)
+
+table <- subset(meta.tab,Treatment=="Group2")
+
+for (i in plasma_meta){
+  for (j in taxonomy){
+    fit.lmer <-  lmer(as.formula(paste0("`",i,"`","~" ,j,"+Age+Gender+ (1| Subject)",sep="")),data = table)
+    G2_plasma_meta_spe_lmm <- rbind(G2_plasma_meta_spe_lmm, data.frame(metabolite = i,spe=j, pval =summary(fit.lmer)$coefficients[2,5], coef=summary(fit.lmer)$coefficients[2,1],stringsAsFactors = FALSE))
+  }
+}
+
+G2_plasma_meta_spe_lmm$Treatment <- "Group1"
+test <- dcast(G2_plasma_meta_spe_lmm,metabolite~spe,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "spe",value.name = "qval")
+G2_plasma_meta_spe_lmm <- merge(G2_plasma_meta_spe_lmm,test,by=c("metabolite","spe"))
+```
+
+###meta与merker
+```{r pressure, echo=FALSE}
+plasma_meta_serum_lmm <- data.frame(metabolite=character(),serum = character(),pval = numeric(),stringsAsFactors=FALSE)
+
+for (i in blood_marker){
+  for (j in plasma_meta){
+    fit.lmer <- lmer(as.formula(paste0(i,"~" ,"`",j,"`","* Treatment + Age + Gender + (1|Subject)",sep="")),data = meta.tab)
+    plasma_meta_serum_lmm <- rbind(plasma_meta_serum_lmm, data.frame(metabolite = j,serum=i, pval =summary(fit.lmer)$coefficients[6,5], stringsAsFactors = FALSE))
+  }
+}
+
+test <- dcast(plasma_meta_serum_lmm,metabolite~serum,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "serum",value.name = "inter_qval")
+plasma_meta_serum_lmm <- merge(plasma_meta_serum_lmm,test,by=c("metabolite","serum"))
+
+#Group1
+G1_plasma_meta_serum_lmm <- data.frame(metabolite=character(),serum = character(),pval = numeric(),coef=numeric(),stringsAsFactors=FALSE)
+
+table <- subset(meta.tab,Treatment=="Group1")
+
+for (i in blood_marker){
+  for (j in plasma_meta){
+    fit.lmer <-  lmer(as.formula(paste0(i,"~" ,"`",j,"`","+Age+Gender + (1| Subject)",sep="")),data = table)
+    G1_plasma_meta_serum_lmm <- rbind(G1_plasma_meta_serum_lmm, data.frame(metabolite = j,serum=i, pval =summary(fit.lmer)$coefficients[2,5],coef=summary(fit.lmer)$coefficients[2,1], stringsAsFactors = FALSE))
+  }
+}
+G1_plasma_meta_serum_lmm$Treatment <- "Group1"
+
+test <- dcast(G1_plasma_meta_serum_lmm,metabolite~serum,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "serum",value.name = "qval")
+G1_plasma_meta_serum_lmm <- merge(G1_plasma_meta_serum_lmm,test,by=c("metabolite","serum"))
+
+#Group2
+G2_plasma_meta_serum_lmm <- data.frame(metabolite=character(),serum = character(),pval = numeric(),coef=numeric(),stringsAsFactors=FALSE)
+
+table <- subset(meta.tab,Treatment=="Group2")
+
+for (i in blood_marker){
+  for (j in plasma_meta){
+    fit.lmer <-  lmer(as.formula(paste0(i,"~" ,"`",j,"`","+Age+Gender + (1| Subject)",sep="")),data = table)
+    G2_plasma_meta_serum_lmm <- rbind(G2_plasma_meta_serum_lmm, data.frame(metabolite = j,serum=i, pval =summary(fit.lmer)$coefficients[2,5],coef=summary(fit.lmer)$coefficients[2,1], stringsAsFactors = FALSE))
+  }
+}
+G2_plasma_meta_serum_lmm$Treatment <- "Group2"
+
+test <- dcast(G2_plasma_meta_serum_lmm,metabolite~serum,value.var ="pval")
+test[,2:ncol(test)] <- apply(test[,2:ncol(test)],2,p.adjust,method = "BH")
+test <- melt(test,variable.name = "serum",value.name = "qval")
+G2_plasma_meta_serum_lmm <- merge(G2_plasma_meta_serum_lmm,test,by=c("metabolite","serum"))
+```
+
+####挑选显著性画网络图
+```{r pressure, echo=FALSE}
+plasma_node.type <- data.frame(node=taxonomy,type=rep("species"))
+plasma_node.type <- rbind(plasma_node.type,data.frame(node=plasma_meta,type=rep("fecal_meta")))
+plasma_node.type <- rbind(plasma_node.type,data.frame(node=blood_marker,type=rep("clinical")))
+
+
+##group1
+#m eta_spe
+tab1 <- merge(G1_plasma_meta_spe_lmm,plasma_meta_spe_lmm[,c(1,2,4)],by=c("metabolite","spe"))
+tab1 <- tab1[tab1$inter_qval < 0.25,]
+tab1 <- tab1[tab1$qval < 0.05,]
+colnames(tab1)[1:2] <- c("node1","node2")
+
+#meta_serum
+tab2 <- merge(G1_plasma_meta_serum_lmm,plasma_meta_serum_lmm[,c(1,2,4)],by=c("metabolite","serum"))
+tab2 <- tab2[tab2$inter_qval < 0.25,]
+tab2<- tab2[tab2$qval < 0.05,]
+colnames(tab2)[1:2] <- c("node1","node2")
+
+#spe_serum
+tab3 <- merge(G1_serum_spe_lmm,serum_spe_lmm[,c(1,2,4)],by=c("spe","serum"))
+tab3 <- tab3[tab3$inter_qval < 0.25,]
+tab3<- tab3[tab3$qval < 0.05,]
+colnames(tab3)[1:2] <- c("node1","node2")
+
+#网络图数据汇总
+g1_plasma_network_tab <- rbind(tab1,tab2,tab3)
+
+g1_plasma_network_tab <-g1_plasma_network_tab %>%
+  #filter(abs(coef) >= 0.5, p <= 0.05, node1 != node2) %>%
+  mutate(linetype = ifelse(coef > 0,"positive","negative"), linesize = abs(coef))
+
+g <- graph_from_data_frame(g1_plasma_network_tab, vertices = plasma_node.type, directed = FALSE )
+vcount(g) # 节点数目：98
+ecount(g) # 链接数:1179
+
+####简单图
+is.simple(g) # 非简单图，链接数会偏高，所以需要转换为简单图。
+E(g)$weight <- 1
+g <- igraph::simplify(g,
+                      remove.multiple = TRUE,
+                      remove.loops = TRUE,
+                      edge.attr.comb = "first")
+g <- delete.vertices(g,which(degree(g) == 0)) #删除孤立点
+E(g)$weight <- 1
+is.weighted(g)
+vcount(g) # 节点数目：57
+ecount(g) # 链接数:291
+V(g)$degree <- degree(g)#计算节点
+
+createNetworkFromIgraph(g,"plasma_meta_g1")
+
+
+##group2
+#meta_spe
+tab1 <- merge(G2_plasma_meta_spe_lmm,plasma_meta_spe_lmm[,c(1,2,4)],by=c("metabolite","spe"))
+tab1 <- tab1[tab1$inter_qval < 0.25,]
+tab1 <- tab1[tab1$qval < 0.25,]
+colnames(tab1)[1:2] <- c("node1","node2")
+
+#meta_serum
+tab2 <- merge(G2_plasma_meta_serum_lmm,plasma_meta_serum_lmm[,c(1,2,4)],by=c("metabolite","serum"))
+tab2 <- tab2[tab2$inter_qval < 0.25,]
+tab2<- tab2[tab2$qval < 0.25,]
+colnames(tab2)[1:2] <- c("node1","node2")
+
+#spe_serum
+tab3 <- merge(G2_serum_spe_lmm,serum_spe_lmm[,c(1,2,4)],by=c("spe","serum"))
+tab3 <- tab3[tab3$inter_qval < 0.25,]
+tab3<- tab3[tab3$qval < 0.25,]
+colnames(tab3)[1:2] <- c("node1","node2")
+
+#网络图数据汇总
+g2_plasma_network_tab <- rbind(tab1,tab2,tab3)
+
+g2_plasma_network_tab <-g2_plasma_network_tab %>%
+  #filter(abs(coef) >= 0.5, p <= 0.05, node1 != node2) %>%
+  mutate(linetype = ifelse(coef > 0,"positive","negative"), linesize = abs(coef))
+
+g <- graph_from_data_frame(g2_plasma_network_tab, vertices = plasma_node.type, directed = FALSE )
+vcount(g) # 节点数目：98
+ecount(g) # 链接数:1179
+
+####简单图
+is.simple(g) # 非简单图，链接数会偏高，所以需要转换为简单图。
+E(g)$weight <- 1
+g <- igraph::simplify(g,
+                      remove.multiple = TRUE,
+                      remove.loops = TRUE,
+                      edge.attr.comb = "first")
+g <- delete.vertices(g,which(degree(g) == 0)) #删除孤立点
+E(g)$weight <- 1
+is.weighted(g)
+vcount(g) # 节点数目：57
+ecount(g) # 链接数:291
+V(g)$degree <- degree(g)#计算节点
+
+createNetworkFromIgraph(g,"plasma_meta_g2")
+
+```

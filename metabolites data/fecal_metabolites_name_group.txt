@@ -1,0 +1,196 @@
+Name	Group	Group2	HMDB
+Lysine	Amino acids	Amino acids	HMDB0000182
+Histidine	Amino acids	Amino acids	HMDB0000177
+Arginine	Amino acids	Amino acids	HMDB0000517
+Ornithine	Amino acids	Amino acids	HMDB0000214
+Glutamine	Amino acids	Amino acids	HMDB0000641
+Glutamic acid	Amino acids	Amino acids	HMDB0000148
+Anserine	Peptidomimetics	Peptidomimetics	HMDB0000194
+Carnosine	Peptidomimetics	Peptidomimetics	HMDB0000033
+Sarcosine	Amino acids	Amino acids	HMDB0000271
+Alanine	Amino acids	Amino acids	HMDB0000161
+Dimethylglycine	Amino acids	Amino acids	HMDB0000092
+GABA	Amino acids	Amino acids	HMDB0000112
+Serine	Amino acids	Amino acids	HMDB0000187
+Threonine	Amino acids	Amino acids	HMDB0000167
+Creatine	Amino acids	Amino acids	HMDB0000064
+Threonic acid	Organic acids	Organic acids	HMDB0000943
+Hydroxypropionic acid	Organic acids	Organic acids	HMDB0000700
+Glycylproline	Amino acids	Amino acids	HMDB0000721
+Homocitrulline	Amino acids	Amino acids	HMDB0000679
+AMP	Nucleosides	Nucleosides	HMDB0000045
+Lactic acid	Organic acids	Organic acids	HMDB0000190
+Nicotinic acid	Pyridines	Pyridines	HMDB0001488
+Methylcysteine	Amino acids	Amino acids	HMDB0002108
+Tyrosine	Amino acids	Amino acids	HMDB0000158
+"3,4-Dihydroxyhydrocinnamic acid"	Phenylpropanoic acids	Phenylpropanoic acids	HMDB0000423
+Asparagine	Amino acids	Amino acids	HMDB0000168
+Protocatechuic acid	Benzenoids	Benzenoids	HMDB0001856
+Phenylalanine	Amino acids	Amino acids	HMDB0000159
+Hydroxyphenyllactic acid	Phenylpropanoic acids	Phenylpropanoic acids	HMDB0000755
+Glycyleucine	Amino acids	Amino acids	HMDB0028929
+Aspartic acid	Amino acids	Amino acids	HMDB0000191
+Glucaric acid	Carbohydrates	Carbohydrates	HMDB0000663
+2-Hydroxy-3-methylbutyric acid	Fatty acids	Fatty acids	HMDB0000407
+Picolinic acid	Pyridines	Pyridines	HMDB0002243
+4-Hydroxybenzoic acid	Benzenoids	Benzenoids	HMDB0000500
+Hippuric acid	Benzenoids	Benzenoids	HMDB0000714
+Malic acid	Organic acids	Organic acids	HMDB0000156
+N-Acetylaspartic acid	Amino acids	Amino acids	HMDB0000812
+N-Acetytyrosine	Amino acids	Amino acids	HMDB0000866
+Ethylmethylacetic acid	Fatty acids	SCFAs	HMDB0002176
+Benzoic acid	Benzenoids	Benzenoids	HMDB0001870
+Coumaric acid/4-Hydroxycinnamic acid	Phenylpropanoic acids	Phenylpropanoic acids	HMDB0041592/HMDB0002035
+Indoleacetic acid	 Indoles	 Indoles	HMDB0000197
+Fumaric acid	Organic acids	Organic acids	HMDB0000134
+Glutaric acid	Organic acids	Organic acids	HMDB0000661
+Aconitic acid	Organic acids	Organic acids	HMDB0000072
+N-Acetyltryptophan	Amino acids	Amino acids	HMDB0013713
+2-Phenylpropionate	Phenylpropanoic acids	Phenylpropanoic acids	HMDB0011743
+Hydrocinnamic acid	Phenylpropanoic acids	Phenylpropanoic acids	HMDB0000764
+Indole-3-propionic acid	 Indoles	 Indoles	HMDB0002302
+N-Phenylacetylphenylalanine	Amino acids	Amino acids	HMDB0002372
+Azelaic acid	Fatty acids	Fatty acids	HMDB0000784
+Sebacic acid	Fatty acids	Fatty acids	HMDB0000792
+alpha-Ketoisovaleric acid	Organic acids	Organic acids	HMDB0000019
+Ketoleucine	Organic acids	Organic acids	HMDB0000695
+3-Methyl-2-oxopentanoic acid	Organic acids	Organic acids	HMDB0000491
+Phenylpyruvic acid	Benzenoids	Benzenoids	HMDB0000205
+Methylmalonic acid	Organic acids	Organic acids	HMDB0000202
+2-Hydroxyglutaric acid	Organic acids	Organic acids	HMDB0000606
+Glycine	Amino acids	Amino acids	HMDB0000123
+Citrulline	Amino acids	Amino acids	HMDB0000904
+Galactonic acid	Organic acids	Organic acids	HMDB0000565
+Gluconolactone	Carbohydrates	Carbohydrates	HMDB0000150
+Glycolic acid	Organic acids	Organic acids	HMDB0000115
+alpha-Aminobutyric acid	Amino acids	Amino acids	HMDB0000452
+Glyceric acid	Carbohydrates	Carbohydrates	HMDB0000139
+Proline	Amino acids	Amino acids	HMDB0000162
+Acetylglycine	Amino acids	Amino acids	HMDB0000532
+Pipecolic acid	Amino acids	Amino acids	HMDB0000716
+Erythronic acid	Carbohydrates	Carbohydrates	HMDB0000613
+N-Acetylserine	Amino acids	Amino acids	HMDB0002931
+Ribonic acid	Carbohydrates	Carbohydrates	HMDB0000867
+N-Acetylglutamine	Amino acids	Amino acids	HMDB0006029
+Quinic acid	Organooxygen compounds	Organooxygen compounds	HMDB0003072
+N-Acetylneuraminic acid	Carbohydrates	Carbohydrates	HMDB0000230
+Melibiose	Carbohydrates	Carbohydrates	HMDB0000048
+Acetic acid	Fatty acids	SCFAs	HMDB0000042
+Valine	Amino acids	Amino acids	HMDB0000883
+Pyroglutamic acid	Amino acids	Amino acids	HMDB0000267
+5-Aminolevulinic acid	Amino acids	Amino acids	HMDB0001149
+Lactulose	Carbohydrates	Carbohydrates	HMDB0000740
+Maltose/Lactose	Carbohydrates	Carbohydrates	HMDB0000163/HMDB0000186
+3-Hydroxybutyric acid	Organic acids	Organic acids	HMDB0000011
+Methionine	Amino acids	Amino acids	HMDB0000696
+4-Aminohippuric acid	Benzenoids	Benzenoids	HMDB0001867
+alpha-Hydroxyisobutyric acid	Organic acids	Organic acids	HMDB0000729
+2-Hydroxybutyric acid	Organic acids	Organic acids	HMDB0000008
+3-Hydroxyisovaleric acid	Organic acids	Organic acids	HMDB0000754
+Glutaconic acid	Organic acids	Organic acids	HMDB0000620
+Isoleucine	Amino acids	Amino acids	HMDB0000172
+Leucine	Amino acids	Amino acids	HMDB0000687
+Xylose	Carbohydrates	Carbohydrates	HMDB0000098
+Ribulose	Carbohydrates	Carbohydrates	HMDB0000621
+Xylulose	Carbohydrates	Carbohydrates	HMDB0001644
+Rhamnose	Carbohydrates	Carbohydrates	HMDB0000849
+beta-D-Fucose	Carbohydrates	Carbohydrates	HMDB0003081
+Fructose	Carbohydrates	Carbohydrates	HMDB0000660
+N-Acetylglucosamine	Carbohydrates	Carbohydrates	HMDB0000215
+Propionic acid	Fatty acids	SCFAs	HMDB0000237
+Glyceraldehyde	Carbohydrates	Carbohydrates	HMDB0001051
+Homovanillic acid	Benzenoids	Benzenoids	HMDB0000118
+3-(3-Hydroxyphenyl)-3-hydroxypropanoic acid	Phenylpropanoic acids	Phenylpropanoic acids	HMDB0002643
+2-Furoic acid	Furans	Furans	HMDB0000617
+p-Hydroxyphenylacetic acid	Benzenoids	Benzenoids	HMDB0000020
+Tryptophan	Amino acids	Amino acids	HMDB0000929
+Butyric acid	Fatty acids	SCFAs	HMDB0000039
+Isobutyric acid	Fatty acids	SCFAs	HMDB0001873
+Malonic acid	Organic acids	Organic acids	HMDB0000691
+Phenylacetylglutamine	Amino acids	Amino acids	HMDB0006344
+Tartaric acid	Carbohydrates	Carbohydrates	HMDB0000956
+Isovaleric acid	Fatty acids	SCFAs	HMDB0000718
+Valeric acid	Fatty acids	SCFAs	HMDB0000892
+Phenyllactic acid	Phenylpropanoic acids	Phenylpropanoic acids	HMDB0000779
+Oxalic acid	Organic acids	Organic acids	HMDB0002329
+Maleic acid	Organic acids	Organic acids	HMDB0000176
+Citraconic acid	Fatty acids	Fatty acids	HMDB0000634
+Methylsuccinic acid	Fatty acids	Fatty acids	HMDB0001844
+Adipic acid	Fatty acids	Fatty acids	HMDB0000448
+Methylglutaric acid	Fatty acids	Fatty acids	HMDB0000752
+Phthalic acid	Benzenoids	Benzenoids	HMDB0002107
+Pimelic acid	Fatty acids	Fatty acids	HMDB0000857
+3-Methyladipic acid	Fatty acids	Fatty acids	HMDB0000555
+Isocaproic acid	Fatty acids	SCFAs	HMDB0000689
+Caproic acid	Fatty acids	SCFAs	HMDB0000535
+Suberic acid	Fatty acids	Fatty acids	HMDB0000893
+TCA	Bile acids	Bile acids	HMDB0000036
+Citric acid	Organic acids	Organic acids	HMDB0000094
+Heptanoic acid	Fatty acids	SCFAs	HMDB0000666
+Pyruvic acid	Organic acids	Organic acids	HMDB0000243
+TDCA	Bile acids	Bile acids	HMDB0000896
+TCDCA	Bile acids	Bile acids	HMDB0000951
+7-DHCA	Bile acids	Bile acids	HMDB0000391
+Oxoglutaric acid	Organic acids	Organic acids	HMDB0000208
+GUDCA	Bile acids	Bile acids	HMDB0000708
+Octanoic acid	Organic acids	Organic acids	HMDB0000482
+UDCA	Bile acids	Bile acids	HMDB0000946
+HDCA	Bile acids	Bile acids	HMDB0000733
+HCA	Bile acids	Bile acids	HMDB0000760
+CA	Bile acids	Bile acids	HMDB0000619
+GCA	Bile acids	Bile acids	HMDB0000138
+Nonanoic acid	Fatty acids	Fatty acids	HMDB0000847
+Decanoic acid	Fatty acids	Fatty acids	HMDB0000511
+isoLCA	Bile acids	Bile acids	HMDB0000717
+GCDCA	Bile acids	Bile acids	HMDB0000637
+GDCA	Bile acids	Bile acids	HMDB0000631
+Undecanoic acid	Fatty acids	Fatty acids	HMDB0000947
+Dodecanoic acid	Fatty acids	Fatty acids	HMDB0000638
+Tridecanoic acid	Fatty acids	Fatty acids	HMDB0000910
+Myristoleic acid	Fatty acids	Fatty acids	HMDB0002000
+Ricinoleic acid	Fatty acids	Fatty acids	HMDB0034297
+bDCA	Bile acids	Bile acids	HMDB0000438
+GLCA	Bile acids	Bile acids	HMDB0000698
+Myristic acid	Fatty acids	Fatty acids	HMDB0000806
+Pentadecanoic acid	Fatty acids	Fatty acids	HMDB0000826
+Palmitoleic acid	Fatty acids	Fatty acids	HMDB0003229
+alpha-Linolenic acid	Fatty acids	Fatty acids	HMDB0001388
+Linoleic acid	Fatty acids	Fatty acids	HMDB0000673
+EPA	Fatty acids	Fatty acids	HMDB0001999
+Arachidonic acid	Fatty acids	Fatty acids	HMDB0001043
+Dihomo-gamma-linolenic acid	Fatty acids	Fatty acids	HMDB0002925
+DHA	Fatty acids	Fatty acids	HMDB0002183
+DPA	Fatty acids	Fatty acids	HMDB0006528
+Succinic acid	Organic acids	Organic acids	HMDB0000254
+Citramalic acid	Organic acids	Organic acids	HMDB0000426
+Oleic acid	Fatty acids	Fatty acids	HMDB0000207
+3-Hydroxyphenylacetic acid	Benzenoids	Benzenoids	HMDB0000440
+Carnitine	Carnitines	Carnitines	HMDB0000062
+Acetylcarnitine	Carnitines	Carnitines	HMDB0000201
+Propionylcarnitine	Carnitines	Carnitines	HMDB0000824
+Valerylcarnitine	Carnitines	Carnitines	HMDB0013128
+Glutarylcarnitine	Carnitines	Carnitines	HMDB0013130
+Dodecanoylcarnitine	Carnitines	Carnitines	HMDB0002250
+Tetradecanoylcarnitine	Carnitines	Carnitines	HMDB0005066
+Palmitoylcarnitine	Carnitines	Carnitines	HMDB0000222
+Oleylcarnitine	Carnitines	Carnitines	HMDB0005065
+Linoleylcarnitine	Carnitines	Carnitines	HMDB0006469
+Stearylcarnitine	Carnitines	Carnitines	HMDB0000848
+Glucose 6-phosphate	Organooxygen compounds	Organooxygen compounds	HMDB0001401
+GLCA-3S	Bile acids	Bile acids	HMDB0002639
+LCA-3S	Bile acids	Bile acids	HMDB0000907
+Methylmalonylcarnitine	Carnitines	Carnitines	HMDB0013133
+NorCA	Bile acids	Bile acids	
+NorDCA	Bile acids	Bile acids	
+UCA	Bile acids	Bile acids	HMDB0000917
+bUDCA	Bile acids	Bile acids	HMDB0000686
+12-DHCA	Bile acids	Bile acids	
+12-KetoLCA	Bile acids	Bile acids	HMDB0000328
+Indole-3-carboxaldehyde	 Indoles	 Indoles	HMDB0029737
+N-Acetylhistidine	Amino acids	Amino acids	HMDB0032055
+"2,2-Dimethylsuccinic acid"	Organic acids	Organic acids	HMDB0002074
+Indolelactic acid	 Indoles	 Indoles	HMDB0000671
+1-Methylhistidine	Amino acids	Amino acids	HMDB0000001
+4-Hydroxyproline	Amino acids	Amino acids	HMDB0000725
+gamma-Glutamylalanine	Amino acids	Amino acids	HMDB0003764
+Imidazolepropionic acid	Imidazoles	Imidazoles	HMDB0002271
