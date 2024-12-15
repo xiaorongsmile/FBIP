@@ -1,0 +1,216 @@
+---
+title: "clinical_data"
+author: "wuxr"
+date: "2024-12-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#定义颜色
+```{r pressure, echo=FALSE}
+group_color <- c(Group1="#CC6666",Group2="#9999CC")
+```
+
+#读入数据
+```{r pressure, echo=FALSE}
+library(dplyr)
+Fbip_clinical_127 <- read.table("clinical_metadata/FBIP_clinical_data_V3.txt",header=T,sep="\t")
+
+Fbip_clinical_127$Time_num <- sapply(Fbip_clinical_127$Time,function(x){strsplit(x,"W")[[1]][2] %>% as.numeric()})
+
+#计算HOMA_IR
+Fbip_clinical_127$HOMA_IR <- (Fbip_clinical_127$Insulin*Fbip_clinical_127$FG)/22.5
+
+colnames <- read.table("metadata_colname.txt",header=T,sep="\t")
+Fbip_clinical_127 <- Fbip_clinical_127[,colnames$colnames]
+
+
+Fbip_clinical_127$Time <- factor(Fbip_clinical_127$Time,levels = c("W0","W4","W8","W12","W16"))
+```
+
+#LMM
+```{r pressure, echo=FALSE}
+library(lme4)
+library(lmerTest)
+
+tab <- Fbip_clinical_127
+tab[, 9:ncol(tab)] <- lapply(tab[, 9:ncol(tab)], scale)
+
+#time*group (5个时间点的指标)
+W4 <- list()
+W8 <- list()
+W12 <- list()
+W16 <- list()
+
+for (i in 21:47){
+    fit.lmer <- lmer(tab[,i] ~ Treatment*Time+Age+Gender+(1 | Subject),data = tab)
+    W4[[i]] <- summary(fit.lmer)$coefficients[9,5]
+    W8[[i]] <- summary(fit.lmer)$coefficients[10,5]
+    W12[[i]] <- summary(fit.lmer)$coefficients[11,5]
+    W16[[i]] <- summary(fit.lmer)$coefficients[12,5]
+}
+
+bioche_lmer.res <- data.frame(clinical=colnames(tab)[21:47],
+                       W4=unlist(W4),
+                       W8=unlist(W8),
+                       W12=unlist(W12),
+                       W16=unlist(W16),
+                      stringsAsFactors = F)
+#校正FDR
+bioche_lmer.res_fdr <- bioche_lmer.res
+for (i in 2:ncol(bioche_lmer.res_fdr)){
+  bioche_lmer.res_fdr[,i] <- p.adjust(bioche_lmer.res_fdr[,i],method="BH")
+}
+
+#group1随时间的变化
+data <- subset(tab,Treatment=="Group1")
+W4_P <- list()
+W8_P <- list()
+W12_P <- list()
+W16_P <- list()
+
+W4_C <- list()
+W8_C <- list()
+W12_C <- list()
+W16_C <- list()
+
+for (i in 21:47){
+  fit.lmer <- lmer(data[,i] ~ Time+Age+Gender+(1 | Subject),data = data)
+  W4_P[[i]] <- summary(fit.lmer)$coefficients[2,5]
+  W8_P[[i]] <- summary(fit.lmer)$coefficients[3,5]
+  W12_P[[i]] <- summary(fit.lmer)$coefficients[4,5]
+  W16_P[[i]] <- summary(fit.lmer)$coefficients[5,5]
+  
+  W4_C[[i]] <- summary(fit.lmer)$coefficients[2,1]
+  W8_C[[i]] <- summary(fit.lmer)$coefficients[3,1]
+  W12_C[[i]] <- summary(fit.lmer)$coefficients[4,1]
+  W16_C[[i]] <- summary(fit.lmer)$coefficients[5,1]
+}
+
+bioche_group1.res <- data.frame(clinical=colnames(data)[21:47],
+                       W4=unlist(W4_P),
+                       W8=unlist(W8_P),
+                       W12=unlist(W12_P),
+                       W16=unlist(W16_P),
+                       stringsAsFactors = F)
+
+bioche_group1.res.coef <- data.frame(clinical=colnames(data)[21:47],
+                       W4 = unlist(W4_C),
+                       W8= unlist(W8_C),
+                       W12= unlist(W12_C),
+                       W16= unlist(W16_C),
+                       stringsAsFactors = F)
+
+#group2随时间的变化
+data <- subset(tab,Treatment=="Group2")
+W4_P <- list()
+W8_P <- list()
+W12_P <- list()
+W16_P <- list()
+
+W4_C <- list()
+W8_C <- list()
+W12_C <- list()
+W16_C <- list()
+
+for (i in 21:47){
+  fit.lmer <- lmer(data[,i] ~ Time+Age+Gender+(1 | Subject),data = data)
+  W4_P[[i]] <- summary(fit.lmer)$coefficients[2,5]
+  W8_P[[i]] <- summary(fit.lmer)$coefficients[3,5]
+  W12_P[[i]] <- summary(fit.lmer)$coefficients[4,5]
+  W16_P[[i]] <- summary(fit.lmer)$coefficients[5,5]
+  
+  W4_C[[i]] <- summary(fit.lmer)$coefficients[2,1]
+  W8_C[[i]] <- summary(fit.lmer)$coefficients[3,1]
+  W12_C[[i]] <- summary(fit.lmer)$coefficients[4,1]
+  W16_C[[i]] <- summary(fit.lmer)$coefficients[5,1]
+}
+
+bioche_group2.res <- data.frame(clinical=colnames(data)[21:47],
+                       W4=unlist(W4_P),
+                       W8=unlist(W8_P),
+                       W12=unlist(W12_P),
+                       W16=unlist(W16_P),
+                       stringsAsFactors = F)
+
+bioche_group2.res.coef <- data.frame(clinical=colnames(data)[21:47],
+                       W4 = unlist(W4_C),
+                       W8= unlist(W8_C),
+                       W12= unlist(W12_C),
+                       W16= unlist(W16_C),
+                       stringsAsFactors = F)
+```
+
+
+#change percent line plot
+```{r pressure, echo=FALSE}
+serum_fc_table <- Fbip_clinical_127[,c(2,3,21:47)]
+#serum_fc_table <- na.omit(serum_fc_table)
+table <- dcast(serum_fc_table,Subject~Time,value.var = "")
+  table$W4 <- (table$W4-table$W0)/table$W0
+  table$W8 <- (table$W8-table$W0)/table$W0
+  table$W12 <- (table$W12-table$W0)/table$W0
+  table$W16 <- (table$W16-table$W0)/table$W0
+  table[,2] <- 0
+  table <- melt(table,variable.name = "Time",value.name = "UA")
+  
+for ( i in colnames(serum_fc_table)[4:29]){
+  table1 <- dcast(serum_fc_table,Subject~Time,value.var = i)
+  table1$W4 <- (table1$W4-table1$W0)/table1$W0
+  table1$W8 <- (table1$W8-table1$W0)/table1$W0
+  table1$W12 <- (table1$W12-table1$W0)/table1$W0
+  table1$W16 <- (table1$W16-table1$W0)/table1$W0
+  
+  table1[,2] <- 0
+  table1 <- melt(table1)
+  table <- cbind(table,table1[,3])
+  colnames(table)[ncol(table)] <- i
+}
+  
+time5_clinical_FC <- table
+time5_clinical_FC <- merge(Fbip_clinical_127[,c(1:8)],time5_clinical_FC,by=c("Subject","Time"))
+
+for (i in 9:35){
+    p <- ggline(time5_clinical_FC,x="Time",y=colnames(time5_clinical_FC)[i],add="mean_se",color="Treatment",palette="joc",legend="right",size = 1,point.size = 4,)+theme_bw()+scale_color_manual(values=group_color)+labs(x="",y=paste(colnames(time5_clinical_FC)[i],"\n%Change"))+theme(axis.text = element_text(size=20,color="black"),axis.title = element_text(size=20,face = "bold"),panel.grid = element_blank(),legend.position = "none")+scale_y_continuous(labels = scales::percent)
+    base::print(p)
+    ggsave(p, file= paste(colnames(time5_clinical_FC)[i], ".pdf"),path="5point_change_percent/",width=4.5, height=3.5)
+}
+
+```
+
+
+##change percent line plot(3point)
+```{r pressure, echo=FALSE}
+serum_fc_table <- Fbip_clinical_127[,c(2,3,48:52)]
+serum_fc_table <- subset(serum_fc_table,Time %in% c("W0","W8","W16"))
+
+table <- dcast(serum_fc_table,Subject~Time,value.var = "OGTT_Glu")
+  table$W8 <- (table$W8-table$W0)/table$W0
+  table$W16 <- (table$W16-table$W0)/table$W0
+  table[,2] <- 0
+  table <- melt(table,variable.name = "Time",value.name = "OGTT_Glu")
+  
+for ( i in colnames(serum_fc_table)[4:7]){
+  table1 <- dcast(serum_fc_table,Subject~Time,value.var = i)
+  table1$W8 <- (table1$W8-table1$W0)/table1$W0
+  table1$W16 <- (table1$W16-table1$W0)/table1$W0
+  table1[,2] <- 0
+  table1 <- melt(table1)
+  table <- cbind(table,table1[,3])
+  colnames(table)[ncol(table)] <- i
+}
+  
+time3_clinical_FC <- table
+time3_clinical_FC <- merge(Fbip_clinical_127[,c(1:8)],time3_clinical_FC,by=c("Subject","Time"))
+
+for (i in 9:13){
+    p <- ggline(time3_clinical_FC,x="Time",y=colnames(time3_clinical_FC)[i],add="mean_se",color="Treatment",palette="joc",legend="right",size = 1,point.size = 4,)+theme_bw()+scale_color_manual(values=group_color)+labs(x="",y=paste(colnames(time3_clinical_FC)[i],"\n%Change"))+theme(axis.text = element_text(size=20,color="black"),axis.title = element_text(size=20,face = "bold"),panel.grid = element_blank(),legend.position = "none")+scale_y_continuous(labels = scales::percent)
+    base::print(p)
+    ggsave(p, file= paste(colnames(time3_clinical_FC)[i], ".pdf"),path="5point_change_percent/",width=4.5, height=3.5)
+}
+```
+
+
